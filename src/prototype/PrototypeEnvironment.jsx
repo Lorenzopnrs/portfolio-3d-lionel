@@ -12,6 +12,7 @@ import {
 } from './ArchitectureElements'
 import { BLOCKOUT_COLORS } from './blockoutPalette'
 import { EVALUATION_STOPS, getPathPlacement } from './cameraPath'
+import { EntranceVerticalSlice } from '../vertical-slice/EntranceVerticalSlice'
 
 const groundArcadeX = [-4.5, -1.5, 1.5, 4.5]
 const groundArcadeZ = [-6, -2, 2, 6]
@@ -121,59 +122,6 @@ function Cloister() {
         color={BLOCKOUT_COLORS.stoneDark}
         position={[6.5, 2.2, -8.5]}
         size={[1, 4.4, 1]}
-      />
-    </group>
-  )
-}
-
-function EntranceWing() {
-  return (
-    <group>
-      <VaultedPassage
-        height={5.3}
-        length={10}
-        position={[-18, 0, 25]}
-        ribCount={3}
-        width={5}
-      />
-      <PortalWall
-        openingHeight={4.4}
-        openingWidth={3.2}
-        position={[-18, 0, 20]}
-        wallHeight={5.3}
-        wallWidth={6.2}
-      />
-      <VaultedPassage
-        height={4.8}
-        length={7}
-        position={[-18, 0, 16.5]}
-        ribCount={3}
-        width={4.5}
-      />
-      <PortalWall
-        openingHeight={4.1}
-        openingWidth={3}
-        position={[-18, 0, 13]}
-        wallHeight={4.8}
-        wallWidth={6}
-      />
-
-      <FloorPlate position={[-18, 0, 11.75]} size={[6, 4.5]} />
-      <Block
-        position={[-21, 2.4, 11.75]}
-        size={[0.72, 4.8, 4.5]}
-      />
-      <Block
-        position={[-18, 2.4, 9.5]}
-        size={[6, 4.8, 0.72]}
-      />
-      <PortalWall
-        openingHeight={4.1}
-        openingWidth={3.2}
-        position={[-15, 0, 12]}
-        rotation={[0, Math.PI / 2, 0]}
-        wallHeight={4.8}
-        wallWidth={5}
       />
     </group>
   )
@@ -511,7 +459,7 @@ export function PrototypeEnvironment() {
   return (
     <>
       <Cloister />
-      <EntranceWing />
+      <EntranceVerticalSlice />
       <FirstProjectRoom />
       <CatalogueCrossing />
       <SecondProjectRoom />

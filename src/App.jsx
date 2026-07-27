@@ -67,6 +67,7 @@ function App() {
     <main className="prototype-shell">
       <div className="prototype-scene" aria-hidden="true">
         <Canvas
+          shadows="percentage"
           camera={{
             fov: 52,
             near: 0.1,
