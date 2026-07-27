@@ -1,19 +1,28 @@
 import {
   EVALUATION_STOPS,
   INITIAL_PROGRESS,
+  PATH_LENGTH,
   clampProgress,
 } from './cameraPath.js'
 
-const MAX_VELOCITY = 0.32
-const WHEEL_IMPULSE = 0.0024
-const KEYBOARD_IMPULSE = 0.045
-const KEYBOARD_ACCELERATION = 0.62
+const REFERENCE_PATH_LENGTH = 57.466
+// Keep the validated motion distances consistent as the route grows.
+const PATH_PROGRESS_SCALE = REFERENCE_PATH_LENGTH / PATH_LENGTH
+const MAX_VELOCITY = 0.32 * PATH_PROGRESS_SCALE
+const WHEEL_IMPULSE = 0.0024 * PATH_PROGRESS_SCALE
+const KEYBOARD_IMPULSE = 0.045 * PATH_PROGRESS_SCALE
+const KEYBOARD_ACCELERATION = 0.62 * PATH_PROGRESS_SCALE
 const DECELERATION = 6.8
-const STOP_RADIUS = 0.026
+const STOP_RADIUS = 0.026 * PATH_PROGRESS_SCALE
 const STOP_SPRING = 24
 const STOP_DAMPING = 9
 const REDUCED_GESTURE_GAP = 140
 const REDUCED_TRANSITION_DURATION = 0.34
+const RELEASE_DISTANCE = 0.0015 * PATH_PROGRESS_SCALE
+const STOP_PROGRESS_THRESHOLD = 0.003 * PATH_PROGRESS_SCALE
+const STOP_SNAP_DISTANCE = 0.0012 * PATH_PROGRESS_SCALE
+const STOP_SNAP_VELOCITY = 0.012 * PATH_PROGRESS_SCALE
+const STOP_APPROACH_VELOCITY = 0.075 * PATH_PROGRESS_SCALE
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -60,19 +69,18 @@ function stepReducedMotion(controller, direction) {
   const referenceProgress = controller.transition
     ? controller.transition.to
     : controller.progress
-  const threshold = 0.003
   let targetStopIndex
 
   if (direction > 0) {
     targetStopIndex = EVALUATION_STOPS.findIndex(
-      (stop) => stop.progress > referenceProgress + threshold,
+      (stop) => stop.progress > referenceProgress + STOP_PROGRESS_THRESHOLD,
     )
     if (targetStopIndex === -1) {
       targetStopIndex = EVALUATION_STOPS.length - 1
     }
   } else {
     targetStopIndex = EVALUATION_STOPS.findLastIndex(
-      (stop) => stop.progress < referenceProgress - threshold,
+      (stop) => stop.progress < referenceProgress - STOP_PROGRESS_THRESHOLD,
     )
     if (targetStopIndex === -1) {
       targetStopIndex = 0
@@ -85,7 +93,7 @@ function stepReducedMotion(controller, direction) {
 function releaseStop(controller, direction) {
   if (controller.activeStopIndex !== null) {
     controller.progress = clampProgress(
-      controller.progress + direction * 0.0015,
+      controller.progress + direction * RELEASE_DISTANCE,
     )
     controller.activeStopIndex = null
   }
@@ -236,7 +244,10 @@ export function updateMovement(controller, frameDelta) {
     controller.keyboardDirection !== 0 ||
     performance.now() - controller.lastInputTime < 90
 
-  if (inputIsActive || Math.abs(controller.velocity) > 0.075) {
+  if (
+    inputIsActive ||
+    Math.abs(controller.velocity) > STOP_APPROACH_VELOCITY
+  ) {
     controller.activeStopIndex = null
     return
   }
@@ -254,8 +265,8 @@ export function updateMovement(controller, frameDelta) {
   controller.velocity *= Math.exp(-STOP_DAMPING * delta)
 
   if (
-    Math.abs(stopDistance) < 0.0012 &&
-    Math.abs(controller.velocity) < 0.012
+    Math.abs(stopDistance) < STOP_SNAP_DISTANCE &&
+    Math.abs(controller.velocity) < STOP_SNAP_VELOCITY
   ) {
     controller.progress = nearestStop.progress
     controller.velocity = 0

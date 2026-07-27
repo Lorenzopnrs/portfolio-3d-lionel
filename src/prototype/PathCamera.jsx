@@ -1,7 +1,12 @@
 import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Matrix4, Quaternion, Vector3 } from 'three'
-import { CAMERA_HEIGHT, cameraPath } from './cameraPath'
+import {
+  CAMERA_LOOK_AHEAD_DISTANCE,
+  PATH_LENGTH,
+  cameraPath,
+  getCameraPointAt,
+} from './cameraPath'
 import { updateMovement } from './movementController'
 
 const WORLD_UP = new Vector3(0, 1, 0)
@@ -10,6 +15,7 @@ export function PathCamera({ movementRef, onTelemetry }) {
   const camera = useThree((state) => state.camera)
   const position = useRef(new Vector3())
   const tangent = useRef(new Vector3())
+  const lookAheadPoint = useRef(new Vector3())
   const lookTarget = useRef(new Vector3())
   const lookMatrix = useRef(new Matrix4())
   const targetQuaternion = useRef(new Quaternion())
@@ -22,14 +28,25 @@ export function PathCamera({ movementRef, onTelemetry }) {
     const movement = movementRef.current
     updateMovement(movement, delta)
 
-    cameraPath.getPointAt(movement.progress, position.current)
-    cameraPath.getTangentAt(movement.progress, tangent.current).normalize()
-    position.current.y = CAMERA_HEIGHT
+    getCameraPointAt(movement.progress, position.current)
+    const lookAheadProgress = Math.min(
+      1,
+      movement.progress + CAMERA_LOOK_AHEAD_DISTANCE / PATH_LENGTH,
+    )
+    getCameraPointAt(lookAheadProgress, lookAheadPoint.current)
+    tangent.current.subVectors(lookAheadPoint.current, position.current)
+
+    if (tangent.current.lengthSq() < 0.000001) {
+      cameraPath.getTangentAt(movement.progress, tangent.current)
+    }
+
+    tangent.current.y = 0
+    tangent.current.normalize()
 
     lookTarget.current
       .copy(position.current)
       .addScaledVector(tangent.current, 6)
-    lookTarget.current.y = CAMERA_HEIGHT
+    lookTarget.current.y = position.current.y
 
     lookMatrix.current.lookAt(
       position.current,

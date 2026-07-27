@@ -17,8 +17,8 @@ export function PrototypeInterface({
   return (
     <>
       <header className="prototype-header">
-        <p className="prototype-kicker">Camera path prototype</p>
-        <h1 className="prototype-title">Constrained movement study</h1>
+        <p className="prototype-kicker">Architectural blockout</p>
+        <h1 className="prototype-title">Abbey route study</h1>
         <p className="prototype-status">
           <span
             className={`status-marker${activeStop ? ' is-active' : ''}`}

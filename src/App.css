@@ -223,18 +223,25 @@
 }
 
 .stop-label {
-  min-width: 88px;
+  display: grid;
+  min-width: 132px;
+  max-width: 180px;
   box-sizing: border-box;
   border-left: 3px solid #ffb45e;
-  padding: 7px 10px;
+  gap: 4px;
+  padding: 8px 10px;
   color: #17120d;
   background: #ffb45e;
   box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
-  font: 800 14px/1 var(--body-font);
+  font: 800 12px/1.15 var(--body-font);
   letter-spacing: 0;
-  text-align: center;
-  white-space: nowrap;
+  text-align: left;
   pointer-events: none;
+}
+
+.stop-label span {
+  font-size: 9px;
+  opacity: 0.72;
 }
 
 .sr-only {
