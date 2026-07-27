@@ -6,7 +6,10 @@ import {
   NoColorSpace,
   RepeatWrapping,
   SRGBColorSpace,
+  TextureLoader,
 } from 'three'
+
+const textureLoader = new TextureLoader()
 
 function createRandom(seed) {
   let value = seed >>> 0
@@ -30,6 +33,17 @@ function createTexture(width, height, repeat, draw) {
   texture.wrapT = RepeatWrapping
   texture.repeat.set(...repeat)
   texture.anisotropy = 4
+  texture.colorSpace = SRGBColorSpace
+
+  return texture
+}
+
+function loadColorTexture(path, repeat) {
+  const texture = textureLoader.load(path)
+  texture.wrapS = RepeatWrapping
+  texture.wrapT = RepeatWrapping
+  texture.repeat.set(...repeat)
+  texture.anisotropy = 8
   texture.colorSpace = SRGBColorSpace
 
   return texture
@@ -319,24 +333,40 @@ function createSurfaceVariationTexture(seed, repeat = [2, 2]) {
   return texture
 }
 
-function cloneTexture(texture, offsetX, offsetY) {
+function cloneTexture(texture, offsetX, offsetY, repeat) {
   const clone = texture.clone()
   clone.offset.set(offsetX, offsetY)
-  clone.needsUpdate = true
+  if (repeat) {
+    clone.repeat.set(...repeat)
+  }
 
   return clone
 }
 
 function createVerticalSliceResources() {
+  const limestoneMap = loadColorTexture(
+    '/textures/vertical-slice/aged-limestone-albedo.jpg',
+    [1.5, 2.1],
+  )
   const stoneMaps = [
-    createStoneTexture(17, [1.6, 2.4]),
-    createStoneTexture(137, [1.9, 2.15]),
-    createStoneTexture(293, [1.45, 2.65]),
+    limestoneMap,
+    cloneTexture(limestoneMap, 0.31, 0.17, [1.85, 2.35]),
+    cloneTexture(limestoneMap, 0.62, 0.43, [1.35, 1.9]),
   ]
   const stoneHeights = [
     createStoneHeightTexture(73, [1.6, 2.4]),
     createStoneHeightTexture(181, [1.9, 2.15]),
     createStoneHeightTexture(347, [1.45, 2.65]),
+  ]
+  const ashlarMaps = [
+    cloneTexture(limestoneMap, 0.08, 0.09, [0.22, 0.22]),
+    cloneTexture(limestoneMap, 0.39, 0.24, [0.2, 0.24]),
+    cloneTexture(limestoneMap, 0.66, 0.58, [0.24, 0.2]),
+  ]
+  const ashlarHeights = [
+    cloneTexture(stoneHeights[0], 0.08, 0.09, [0.22, 0.22]),
+    cloneTexture(stoneHeights[1], 0.39, 0.24, [0.2, 0.24]),
+    cloneTexture(stoneHeights[2], 0.66, 0.58, [0.24, 0.2]),
   ]
   const floorMaps = [
     createStoneTexture(419, [2.8, 1.5]),
@@ -346,16 +376,29 @@ function createVerticalSliceResources() {
     createStoneHeightTexture(449, [2.8, 1.5]),
     createStoneHeightTexture(593, [2.35, 1.75]),
   ]
-  const stoneDarkMap = createStoneTexture(673, [1.7, 2.3])
+  const stoneDarkMap = cloneTexture(
+    limestoneMap,
+    0.18,
+    0.61,
+    [2.15, 2.7],
+  )
   const stoneDarkHeight = createStoneHeightTexture(719, [1.7, 2.3])
-  const woodMap = createWoodTexture()
-  const woodHeight = cloneTexture(woodMap, 0, 0)
+  const woodMap = loadColorTexture(
+    '/textures/vertical-slice/dark-oak-albedo.jpg',
+    [1.2, 2.4],
+  )
+  const woodHeight = createWoodTexture()
   woodHeight.colorSpace = NoColorSpace
   const woodWornMap = cloneTexture(woodMap, 0.38, 0.21)
   const woodWornHeight = cloneTexture(woodHeight, 0.38, 0.21)
-  const carpetMap = createCarpetTexture()
-  const carpetHeight = cloneTexture(carpetMap, 0, 0)
+  const carpetMap = loadColorTexture(
+    '/textures/vertical-slice/worn-runner-albedo.jpg',
+    [1, 2.8],
+  )
+  const carpetHeight = createCarpetTexture()
   carpetHeight.colorSpace = NoColorSpace
+  const textileMap = cloneTexture(carpetMap, 0.18, 0.37, [2.1, 2.1])
+  const textileHeight = cloneTexture(carpetHeight, 0.18, 0.37, [2.1, 2.1])
   const paperMap = createPaperTexture(811)
   const paperAgedMap = createPaperTexture(907)
   const paperHeight = createSurfaceVariationTexture(997, [1.2, 1.2])
@@ -366,7 +409,7 @@ function createVerticalSliceResources() {
     createSurfaceVariationTexture(1321 + index * 53, [1.4, 1.4]),
   )
 
-    const stoneColors = ['#4d493f', '#3d3a34', '#5b554a']
+  const stoneColors = ['#99978f', '#7f7e79', '#aaa298']
   const stoneVariants = stoneMaps.map(
     (map, index) =>
       new MeshStandardMaterial({
@@ -377,30 +420,41 @@ function createVerticalSliceResources() {
         roughness: [0.95, 0.98, 0.93][index],
       }),
   )
+  const ashlarColors = ['#908d85', '#787671', '#9e978d']
+  const ashlarVariants = ashlarMaps.map(
+    (map, index) =>
+      new MeshStandardMaterial({
+        map,
+        bumpMap: ashlarHeights[index],
+        bumpScale: [0.04, 0.035, 0.045][index],
+        color: ashlarColors[index],
+        roughness: 0.97,
+      }),
+  )
 
   const floorVariants = [
     new MeshStandardMaterial({
       map: floorMaps[0],
       bumpMap: floorHeights[0],
       bumpScale: 0.045,
-        color: '#35322d',
+      color: '#56534d',
       roughness: 0.88,
     }),
     new MeshStandardMaterial({
       map: floorMaps[1],
       bumpMap: floorHeights[1],
       bumpScale: 0.04,
-        color: '#403b34',
+      color: '#615c53',
       roughness: 0.9,
     }),
   ]
 
   const bookCoverColors = [
-    '#3f1715',
-    '#263024',
-    '#3c3023',
-    '#242b31',
-    '#543821',
+    '#2e1715',
+    '#25281f',
+    '#302820',
+    '#242628',
+    '#3a2b1f',
   ]
   const bookCovers = bookCoverColors.map(
     (color, index) =>
@@ -414,8 +468,9 @@ function createVerticalSliceResources() {
   )
 
   const materials = {
+    ashlarVariants,
     brass: new MeshStandardMaterial({
-      color: '#76572d',
+      color: '#5f4c33',
       metalness: 0.68,
       roughness: 0.46,
       roughnessMap: metalVariation,
@@ -425,7 +480,7 @@ function createVerticalSliceResources() {
       map: carpetMap,
       bumpMap: carpetHeight,
       bumpScale: 0.012,
-      color: '#7b3731',
+      color: '#b9a19e',
       roughness: 1,
     }),
     flame: new MeshBasicMaterial({
@@ -437,11 +492,13 @@ function createVerticalSliceResources() {
       color: '#39432d',
       roughness: 1,
       roughnessMap: foliageVariation,
+      side: DoubleSide,
     }),
     foliageDry: new MeshStandardMaterial({
       color: '#513b2b',
       roughness: 1,
       roughnessMap: foliageVariation,
+      side: DoubleSide,
     }),
     iron: new MeshStandardMaterial({
       color: '#171815',
@@ -462,25 +519,32 @@ function createVerticalSliceResources() {
       map: paperMap,
       bumpMap: paperHeight,
       bumpScale: 0.008,
-      color: '#d5c39d',
+      color: '#c4b99f',
       roughness: 0.92,
     }),
     paperAged: new MeshStandardMaterial({
       map: paperAgedMap,
       bumpMap: paperHeight,
       bumpScale: 0.01,
-      color: '#ad936b',
+      color: '#a58f70',
       roughness: 0.96,
     }),
     stoneDark: new MeshStandardMaterial({
       map: stoneDarkMap,
       bumpMap: stoneDarkHeight,
       bumpScale: 0.075,
-        color: '#35332d',
+      color: '#373832',
       roughness: 0.99,
       side: DoubleSide,
     }),
     stoneVariants,
+    textile: new MeshStandardMaterial({
+      map: textileMap,
+      bumpMap: textileHeight,
+      bumpScale: 0.009,
+      color: '#55443f',
+      roughness: 1,
+    }),
     vine: new MeshStandardMaterial({
       color: '#252b1c',
       roughness: 1,
@@ -494,14 +558,14 @@ function createVerticalSliceResources() {
       map: woodMap,
       bumpMap: woodHeight,
       bumpScale: 0.025,
-      color: '#3d2f22',
+      color: '#b3a69a',
       roughness: 0.83,
     }),
     woodWorn: new MeshStandardMaterial({
       map: woodWornMap,
       bumpMap: woodWornHeight,
       bumpScale: 0.018,
-      color: '#241d18',
+      color: '#8d8176',
       roughness: 0.9,
     }),
   }
@@ -509,6 +573,8 @@ function createVerticalSliceResources() {
   const textures = [
     ...stoneMaps,
     ...stoneHeights,
+    ...ashlarMaps,
+    ...ashlarHeights,
     ...floorMaps,
     ...floorHeights,
     stoneDarkMap,
@@ -519,6 +585,8 @@ function createVerticalSliceResources() {
     woodWornHeight,
     carpetMap,
     carpetHeight,
+    textileMap,
+    textileHeight,
     paperMap,
     paperAgedMap,
     paperHeight,
@@ -529,6 +597,7 @@ function createVerticalSliceResources() {
   ]
   const materialList = [
     ...stoneVariants,
+    ...ashlarVariants,
     ...floorVariants,
     ...bookCovers,
     ...Object.values(materials).filter(
