@@ -327,6 +327,28 @@ def create_root(name, category):
     return root
 
 
+def create_story_cluster(
+    parent,
+    name,
+    location,
+    owner,
+    action,
+    state,
+):
+    cluster = bpy.data.objects.new(name, None)
+    cluster.empty_display_type = "CUBE"
+    cluster.empty_display_size = 0.28
+    cluster["asset_category"] = "environmental_storytelling"
+    cluster["narrative_owner"] = owner
+    cluster["narrative_action"] = action
+    cluster["narrative_state"] = state
+    bpy.context.scene.collection.objects.link(cluster)
+    cluster.parent = parent
+    cluster.matrix_parent_inverse = Matrix.Identity(4)
+    cluster.location = location
+    return cluster
+
+
 def apply_transform(object_):
     bpy.context.view_layer.objects.active = object_
     object_.select_set(True)
@@ -1542,19 +1564,36 @@ def create_bookshelf(
     for row_index in range(shelf_count):
         x_position = -width / 2 + post_width + 0.09
         book_index = 0
+        include_horizontal_stack = row_index % 3 == 1
+        row_limit = (
+            width / 2
+            - post_width
+            - (0.62 if include_horizontal_stack else 0.08)
+        )
+        gap_after = 3 + row_index % 2
 
-        while x_position < width / 2 - post_width - 0.08:
+        while x_position < row_limit:
             book_name = book_names[
                 (book_index + row_index * 2) % len(book_names)
             ]
-            source_width = 0.105 + ((book_index + row_index) % 3) * 0.018
+            width_scale = 0.9 + (
+                (book_index + row_index * 2) % 4
+            ) * 0.045
+            source_width = (
+                ASSET_MESHES[book_name].dimensions.x * width_scale
+            )
             book_height_scale = min(
-                1.0,
+                1.08,
                 (row_height - 0.12)
-                / (0.42 + ((book_index + row_index) % 2) * 0.06),
+                / ASSET_MESHES[book_name].dimensions.z,
             )
             pulled = (book_index + row_index * 3) % 7 == 0
-            tilted = (book_index + row_index) % 5 == 0
+            tilt_selector = (book_index + row_index * 2) % 8
+            tilt_angle = (
+                -8
+                if tilt_selector == 0
+                else 6 if tilt_selector == 5 else 0
+            )
             x_position += source_width / 2
 
             instance_asset(
@@ -1568,14 +1607,36 @@ def create_bookshelf(
                 ),
                 rotation=(
                     0.0,
-                    radians(-7 if tilted else 0),
+                    radians(tilt_angle),
                     0.0,
                 ),
-                scale=(1.0, 1.0, book_height_scale),
+                scale=(
+                    width_scale,
+                    0.94 + (book_index % 3) * 0.035,
+                    book_height_scale,
+                ),
                 linked=False,
             )
             x_position += source_width / 2 + 0.018
             book_index += 1
+
+            if book_index == gap_after:
+                x_position += 0.085
+
+        if include_horizontal_stack:
+            instance_asset(
+                "BookStackLow",
+                root,
+                f"{name}HorizontalStack_{row_index:02d}",
+                (
+                    width / 2 - post_width - 0.31,
+                    -depth / 2 - 0.012,
+                    shelf_heights[row_index] + 0.052,
+                ),
+                rotation=(0.0, 0.0, -0.035),
+                scale=(0.58, 0.58, 0.58),
+                linked=False,
+            )
 
     return finalize_asset(root, catalog_location)
 
@@ -2316,6 +2377,76 @@ def create_leaf(parent, name, location, scale, rotation, material):
     return leaf
 
 
+def create_ground_leaf(
+    parent,
+    name,
+    center,
+    length,
+    width,
+    angle,
+    material,
+):
+    forward_x = cos(angle)
+    forward_y = sin(angle)
+    side_x = -forward_y
+    side_y = forward_x
+    center_x, center_y, center_z = center
+    vertices = (
+        (
+            center_x - forward_x * length * 0.5,
+            center_y - forward_y * length * 0.5,
+            center_z,
+        ),
+        (
+            center_x - forward_x * length * 0.12 + side_x * width,
+            center_y - forward_y * length * 0.12 + side_y * width,
+            center_z + 0.006,
+        ),
+        (
+            center_x + forward_x * length * 0.22 + side_x * width * 0.7,
+            center_y + forward_y * length * 0.22 + side_y * width * 0.7,
+            center_z + 0.012,
+        ),
+        (
+            center_x + forward_x * length * 0.5,
+            center_y + forward_y * length * 0.5,
+            center_z + 0.018,
+        ),
+        (
+            center_x + forward_x * length * 0.22 - side_x * width * 0.7,
+            center_y + forward_y * length * 0.22 - side_y * width * 0.7,
+            center_z + 0.012,
+        ),
+        (
+            center_x - forward_x * length * 0.12 - side_x * width,
+            center_y - forward_y * length * 0.12 - side_y * width,
+            center_z + 0.006,
+        ),
+    )
+    leaf = create_mesh_object(
+        name,
+        vertices,
+        ((0, 1, 2, 3, 4, 5),),
+        material,
+        parent,
+        uv_coordinates=(
+            (0.5, 0.0),
+            (0.0, 0.35),
+            (0.08, 0.72),
+            (0.5, 1.0),
+            (0.92, 0.72),
+            (1.0, 0.35),
+        ),
+    )
+    solidify = leaf.modifiers.new(name="GroundLeafThickness", type="SOLIDIFY")
+    solidify.thickness = 0.003
+    bpy.context.view_layer.objects.active = leaf
+    leaf.select_set(True)
+    bpy.ops.object.modifier_apply(modifier=solidify.name)
+    leaf.select_set(False)
+    return leaf
+
+
 def create_ivy_asset(name, catalog_location, seed):
     root = create_root(name, "textile_and_dressing")
     randomizer = Random(seed)
@@ -2507,6 +2638,340 @@ def create_side_clutter(
     return finalize_asset(root, catalog_location)
 
 
+def create_leaning_book_row(
+    name,
+    catalog_location,
+    book_names,
+):
+    root = create_root(name, "books_and_paper")
+    angles = (-7, -2, 6, 0, -5, 4, 1)
+    x_position = -0.37
+
+    for index, angle in enumerate(angles):
+        book_name = book_names[(index * 3 + 1) % len(book_names)]
+        width_scale = 0.86 + (index % 4) * 0.055
+        source_width = (
+            ASSET_MESHES[book_name].dimensions.x * width_scale
+        )
+        x_position += source_width / 2
+        instance_asset(
+            book_name,
+            root,
+            f"{name}Book_{index:02d}",
+            (
+                x_position,
+                -0.01 + (index % 3) * 0.012,
+                0.018,
+            ),
+            rotation=(0.0, radians(angle), 0.0),
+            scale=(
+                width_scale,
+                0.9 + (index % 2) * 0.07,
+                0.82 + (index % 5) * 0.045,
+            ),
+            linked=False,
+        )
+        x_position += source_width / 2 + 0.018
+
+    return finalize_asset(root, catalog_location)
+
+
+def create_folio_bundle(catalog_location):
+    root = create_root("FolioBundle", "books_and_paper")
+
+    create_box(
+        "FolioLowerCover",
+        (0.7, 0.5, 0.024),
+        (0.0, 0.0, 0.012),
+        MATERIALS["leather_umber"],
+        root,
+        bevel=0.01,
+        rotation=(0.0, 0.0, -0.018),
+    )
+
+    for page_index in range(6):
+        create_curved_sheet(
+            f"FolioSheet_{page_index:02d}",
+            0.64 - page_index * 0.008,
+            0.45 - page_index * 0.006,
+            (
+                (page_index % 3 - 1) * 0.015,
+                ((page_index + 1) % 3 - 1) * 0.012,
+                0.032 + page_index * 0.008,
+            ),
+            MATERIALS[
+                "paper_light" if page_index % 3 else "paper"
+            ],
+            root,
+            curl=0.018 + (page_index % 3) * 0.009,
+            wave=(page_index % 2 * 2 - 1) * 0.004,
+            rotation=(
+                0.0,
+                0.0,
+                -0.025 + page_index * 0.011,
+            ),
+        )
+
+    create_box(
+        "FolioUpperCover",
+        (0.69, 0.49, 0.022),
+        (0.018, -0.008, 0.096),
+        MATERIALS["leather_green"],
+        root,
+        bevel=0.01,
+        rotation=(0.012, -0.018, 0.035),
+    )
+    create_box(
+        "FolioLeatherTie",
+        (0.055, 0.56, 0.026),
+        (0.19, 0.0, 0.108),
+        MATERIALS["leather_umber"],
+        root,
+        bevel=0.006,
+        rotation=(0.0, 0.0, 0.025),
+    )
+    create_box(
+        "FolioClasp",
+        (0.085, 0.045, 0.025),
+        (0.19, -0.275, 0.112),
+        MATERIALS["brass"],
+        root,
+        bevel=0.005,
+    )
+
+    for tab_index, y_position in enumerate((-0.15, 0.02, 0.17)):
+        create_box(
+            f"FolioIndexTab_{tab_index:02d}",
+            (0.075, 0.085, 0.008),
+            (-0.36, y_position, 0.055 + tab_index * 0.007),
+            MATERIALS[
+                "paper" if tab_index == 1 else "paper_light"
+            ],
+            root,
+            bevel=0.002,
+            rotation=(0.0, 0.0, -0.03 + tab_index * 0.025),
+        )
+
+    return finalize_asset(root, catalog_location)
+
+
+def create_archive_crate(catalog_location):
+    root = create_root("ArchiveCrate", "small_archive_props")
+    width = 0.96
+    depth = 0.58
+    height = 0.54
+
+    create_box(
+        "ArchiveCrateBase",
+        (width, depth, 0.08),
+        (0.0, 0.0, 0.04),
+        MATERIALS["wood_dark"],
+        root,
+        bevel=0.015,
+    )
+
+    for x_position in (-width / 2 + 0.045, width / 2 - 0.045):
+        for y_position in (
+            -depth / 2 + 0.045,
+            depth / 2 - 0.045,
+        ):
+            create_box(
+                f"ArchiveCratePost_{x_position}_{y_position}",
+                (0.075, 0.075, height),
+                (x_position, y_position, height / 2),
+                MATERIALS["wood_dark"],
+                root,
+                bevel=0.014,
+            )
+
+    for slat_index, z_position in enumerate((0.16, 0.32, 0.48)):
+        for side in (-1, 1):
+            create_box(
+                f"ArchiveCrateLongSlat_{slat_index:02d}_{side}",
+                (width - 0.12, 0.055, 0.105),
+                (
+                    0.0,
+                    side * (depth / 2 - 0.028),
+                    z_position,
+                ),
+                MATERIALS[
+                    "wood" if slat_index % 2 == 0 else "wood_dark"
+                ],
+                root,
+                bevel=0.012,
+            )
+            create_box(
+                f"ArchiveCrateSideSlat_{slat_index:02d}_{side}",
+                (0.055, depth - 0.13, 0.105),
+                (
+                    side * (width / 2 - 0.028),
+                    0.0,
+                    z_position,
+                ),
+                MATERIALS[
+                    "wood_dark" if slat_index % 2 == 0 else "wood"
+                ],
+                root,
+                bevel=0.012,
+            )
+
+    for side in (-1, 1):
+        create_torus(
+            f"ArchiveCrateHandle_{side}",
+            0.09,
+            0.012,
+            (side * (width / 2 + 0.012), 0.0, 0.34),
+            MATERIALS["iron"],
+            root,
+            rotation=(0.0, pi / 2, 0.0),
+            major_segments=14,
+            minor_segments=5,
+        )
+
+    instance_asset(
+        "LeaningBookRow",
+        root,
+        "ArchiveCrateBookRow",
+        (-0.02, -0.015, 0.1),
+        scale=(0.78, 0.78, 0.78),
+        linked=False,
+    )
+    instance_asset(
+        "FolioBundle",
+        root,
+        "ArchiveCrateFolio",
+        (0.02, 0.0, 0.58),
+        rotation=(0.0, 0.0, 0.08),
+        scale=(0.72, 0.72, 0.72),
+        linked=False,
+    )
+    return finalize_asset(root, catalog_location)
+
+
+def create_reading_stool(catalog_location):
+    root = create_root("ReadingStool", "furniture_and_storage")
+
+    for x_position in (-0.18, 0.18):
+        for y_position in (-0.18, 0.18):
+            create_box(
+                f"ReadingStoolLeg_{x_position}_{y_position}",
+                (0.065, 0.065, 0.48),
+                (x_position, y_position, 0.24),
+                MATERIALS["wood"],
+                root,
+                bevel=0.012,
+                rotation=(
+                    radians(-2 if x_position < 0 else 2),
+                    radians(2 if y_position < 0 else -2),
+                    0.0,
+                ),
+            )
+
+    create_torus(
+        "ReadingStoolFootRing",
+        0.22,
+        0.018,
+        (0.0, 0.0, 0.22),
+        MATERIALS["wood_dark"],
+        root,
+        major_segments=18,
+        minor_segments=6,
+    )
+    create_cylinder(
+        "ReadingStoolSeat",
+        0.285,
+        0.085,
+        (0.0, 0.0, 0.52),
+        MATERIALS["wood"],
+        root,
+        vertices=18,
+        bevel=0.025,
+    )
+    create_torus(
+        "ReadingStoolSeatEdge",
+        0.255,
+        0.018,
+        (0.0, 0.0, 0.56),
+        MATERIALS["wood_dark"],
+        root,
+        major_segments=20,
+        minor_segments=6,
+    )
+    return finalize_asset(root, catalog_location)
+
+
+def create_ground_growth(name, catalog_location, seed):
+    root = create_root(name, "textile_and_dressing")
+    randomizer = Random(seed)
+
+    for stem_index in range(3):
+        angle = -0.72 + stem_index * 0.68
+        length = 0.34 + stem_index * 0.09
+        create_curve_tube(
+            f"{name}Stem_{stem_index:02d}",
+            (
+                (0.0, 0.0, 0.035),
+                (
+                    cos(angle) * length * 0.48,
+                    sin(angle) * length * 0.48,
+                    0.045,
+                ),
+                (
+                    cos(angle) * length,
+                    sin(angle) * length,
+                    0.055,
+                ),
+            ),
+            0.009,
+            MATERIALS["foliage_dry"],
+            root,
+            resolution=1,
+        )
+
+    for leaf_index in range(12):
+        angle = randomizer.uniform(-1.15, 1.15)
+        radius = randomizer.uniform(0.08, 0.43)
+        create_ground_leaf(
+            root,
+            f"{name}Leaf_{leaf_index:02d}",
+            (
+                cos(angle) * radius,
+                sin(angle) * radius,
+                randomizer.uniform(0.045, 0.075),
+            ),
+            randomizer.uniform(0.12, 0.2),
+            randomizer.uniform(0.04, 0.075),
+            angle + randomizer.uniform(-0.25, 0.25),
+            MATERIALS[
+                "foliage_dry" if leaf_index % 5 == 0 else "foliage"
+            ],
+        )
+
+    for moss_index in range(5):
+        create_sphere(
+            f"{name}Moss_{moss_index:02d}",
+            randomizer.uniform(0.06, 0.11),
+            (
+                randomizer.uniform(-0.18, 0.18),
+                randomizer.uniform(-0.1, 0.1),
+                randomizer.uniform(0.015, 0.028),
+            ),
+            MATERIALS[
+                "foliage_dry" if moss_index == 3 else "foliage"
+            ],
+            root,
+            scale=(
+                randomizer.uniform(1.0, 1.6),
+                randomizer.uniform(0.65, 1.1),
+                randomizer.uniform(0.18, 0.3),
+            ),
+            segments=8,
+            rings=5,
+        )
+
+    return finalize_asset(root, catalog_location)
+
+
 def create_asset_library():
     create_stone_wall_module(
         "StoneWallModuleA",
@@ -2579,6 +3044,42 @@ def create_asset_library():
         (30.2, -10.0, 0.0),
         band_count=0,
     )
+    create_book_asset(
+        "BookVariantE",
+        0.095,
+        0.27,
+        0.56,
+        MATERIALS["leather_umber"],
+        (30.6, -10.0, 0.0),
+        band_count=2,
+    )
+    create_book_asset(
+        "BookVariantF",
+        0.155,
+        0.34,
+        0.41,
+        MATERIALS["leather_green"],
+        (31.0, -10.0, 0.0),
+        band_count=0,
+    )
+    create_book_asset(
+        "BookVariantG",
+        0.075,
+        0.235,
+        0.34,
+        MATERIALS["leather"],
+        (31.4, -10.0, 0.0),
+        band_count=1,
+    )
+    create_book_asset(
+        "BookVariantH",
+        0.118,
+        0.29,
+        0.47,
+        MATERIALS["leather_green"],
+        (31.8, -10.0, 0.0),
+        band_count=2,
+    )
     create_open_book((29.0, -7.0, 0.0))
     create_loose_papers((30.0, -7.0, 0.0))
     create_notebook((31.0, -7.0, 0.0))
@@ -2588,8 +3089,9 @@ def create_asset_library():
         (
             "BookVariantA",
             "BookVariantC",
+            "BookVariantG",
+            "BookVariantF",
             "BookVariantD",
-            "BookVariantB",
         ),
     )
     create_book_stack(
@@ -2598,11 +3100,35 @@ def create_asset_library():
         (
             "BookVariantB",
             "BookVariantA",
-            "BookVariantC",
+            "BookVariantE",
             "BookVariantD",
-            "BookVariantA",
+            "BookVariantG",
+            "BookVariantH",
             "BookVariantC",
+        ),
+        tall=True,
+    )
+    create_book_stack(
+        "BookStackBroad",
+        (33.0, -4.0, 0.0),
+        (
+            "BookVariantF",
+            "BookVariantD",
+            "BookVariantH",
             "BookVariantB",
+            "BookVariantA",
+            "BookVariantE",
+        ),
+    )
+    create_book_stack(
+        "BookStackSlender",
+        (35.0, -4.0, 0.0),
+        (
+            "BookVariantG",
+            "BookVariantE",
+            "BookVariantC",
+            "BookVariantH",
+            "BookVariantA",
         ),
         tall=True,
     )
@@ -2612,6 +3138,10 @@ def create_asset_library():
         "BookVariantB",
         "BookVariantC",
         "BookVariantD",
+        "BookVariantE",
+        "BookVariantF",
+        "BookVariantG",
+        "BookVariantH",
     )
     create_bookshelf(
         "BookshelfLarge",
@@ -2662,6 +3192,24 @@ def create_asset_library():
         (42.0, 11.0, 0.0),
         "BookStackLow",
         include_candle=False,
+    )
+    create_leaning_book_row(
+        "LeaningBookRow",
+        (44.0, -8.0, 0.0),
+        book_names,
+    )
+    create_folio_bundle((44.0, -5.0, 0.0))
+    create_archive_crate((46.0, -5.0, 0.0))
+    create_reading_stool((44.0, -2.0, 0.0))
+    create_ground_growth(
+        "GroundGrowthA",
+        (44.0, 1.0, 0.0),
+        149,
+    )
+    create_ground_growth(
+        "GroundGrowthB",
+        (46.0, 1.0, 0.0),
+        271,
     )
 
 
@@ -2879,6 +3427,228 @@ def create_entrance_assembly():
         rotation=(0.0, 0.0, -0.12),
         scale=(0.88, 0.88, 0.88),
     )
+    instance_asset(
+        "BookshelfSmall",
+        assembly,
+        "CorridorSecondaryBookshelf",
+        (2.22, 11.35, 0.0),
+        rotation=(0.0, 0.0, -pi / 2),
+        scale=(0.94, 0.94, 0.94),
+    )
+
+    desk_aftermath = create_story_cluster(
+        assembly,
+        "DeskAftermathCluster",
+        (-2.0, 3.1, 0.0),
+        "cataloguer",
+        "compared a folio against the open reference volume",
+        "stool pulled back and notes left where the search paused",
+    )
+    instance_asset(
+        "ReadingStool",
+        desk_aftermath,
+        "DeskPulledReadingStool",
+        (0.55, -0.02, 0.0),
+        rotation=(0.0, 0.0, 0.16),
+        scale=(0.94, 0.94, 0.94),
+    )
+    instance_asset(
+        "FolioBundle",
+        desk_aftermath,
+        "DeskComparisonFolio",
+        (-0.17, -0.62, 1.035),
+        rotation=(0.0, 0.0, -0.09),
+        scale=(0.62, 0.62, 0.62),
+    )
+    instance_asset(
+        "BookStackSlender",
+        desk_aftermath,
+        "DeskWaitingReferences",
+        (-0.2, 0.86, 0.02),
+        rotation=(0.0, 0.0, 0.08),
+        scale=(0.72, 0.72, 0.72),
+    )
+    instance_asset(
+        "LoosePapers",
+        desk_aftermath,
+        "DeskDroppedNotes",
+        (0.26, -0.84, 0.025),
+        rotation=(0.0, 0.0, -0.12),
+        scale=(0.7, 0.7, 0.7),
+    )
+
+    returned_volumes = create_story_cluster(
+        assembly,
+        "ReturnedVolumesCluster",
+        (2.05, 5.3, 0.0),
+        "librarian",
+        "sorted returned volumes before reshelving",
+        "crate remains open with one row still awaiting placement",
+    )
+    instance_asset(
+        "ArchiveCrate",
+        returned_volumes,
+        "ReturnedVolumesCrate",
+        (0.0, -0.2, 0.0),
+        rotation=(0.0, 0.0, -0.07),
+        scale=(0.86, 0.86, 0.86),
+    )
+    instance_asset(
+        "BookStackBroad",
+        returned_volumes,
+        "ReturnedVolumesFloorStack",
+        (-0.18, -1.05, 0.02),
+        rotation=(0.0, 0.0, 0.11),
+        scale=(0.82, 0.82, 0.82),
+    )
+    instance_asset(
+        "LeaningBookRow",
+        returned_volumes,
+        "ReturnedVolumesLeaningRow",
+        (0.05, 1.15, 0.02),
+        rotation=(0.0, 0.0, -0.05),
+        scale=(0.88, 0.88, 0.88),
+    )
+
+    arch_research = create_story_cluster(
+        assembly,
+        "ArchResearchCluster",
+        (-2.02, 9.2, 0.0),
+        "visiting scholar",
+        "compared several indices before crossing the first arch",
+        "folio and reference volumes stay grouped beside the pier",
+    )
+    instance_asset(
+        "BookStackBroad",
+        arch_research,
+        "ArchReferenceStack",
+        (-0.05, -1.15, 0.02),
+        rotation=(0.0, 0.0, -0.1),
+        scale=(0.78, 0.78, 0.78),
+    )
+    instance_asset(
+        "FolioBundle",
+        arch_research,
+        "ArchIndexedFolio",
+        (0.1, -0.55, 0.035),
+        rotation=(0.0, 0.0, 0.13),
+        scale=(0.78, 0.78, 0.78),
+    )
+    instance_asset(
+        "LeaningBookRow",
+        arch_research,
+        "ArchLeaningReferences",
+        (-0.05, 0.6, 0.02),
+        rotation=(0.0, 0.0, 0.08),
+        scale=(0.78, 0.78, 0.78),
+    )
+
+    lectern_consultation = create_story_cluster(
+        assembly,
+        "LecternConsultationCluster",
+        (2.05, 13.7, 0.0),
+        "provenance researcher",
+        "cross-referenced the lectern volume with indexed papers",
+        "supporting material remains ordered at the lectern base",
+    )
+    instance_asset(
+        "FolioBundle",
+        lectern_consultation,
+        "LecternIndexedFolio",
+        (0.12, -0.65, 0.035),
+        rotation=(0.0, 0.0, -0.08),
+        scale=(0.76, 0.76, 0.76),
+    )
+    instance_asset(
+        "BookStackLow",
+        lectern_consultation,
+        "LecternReferenceStack",
+        (0.1, 1.05, 0.02),
+        rotation=(0.0, 0.0, 0.12),
+        scale=(0.74, 0.74, 0.74),
+    )
+    instance_asset(
+        "LoosePapers",
+        lectern_consultation,
+        "LecternGroupedPapers",
+        (-0.08, 1.45, 0.025),
+        rotation=(0.0, 0.0, -0.1),
+        scale=(0.68, 0.68, 0.68),
+    )
+
+    door_delivery = create_story_cluster(
+        assembly,
+        "DoorDeliveryCluster",
+        (-2.05, 18.8, 0.0),
+        "archive porter",
+        "left a transfer crate beside the closed destination door",
+        "volumes wait safely outside the turning circulation line",
+    )
+    instance_asset(
+        "BookshelfSmall",
+        door_delivery,
+        "DoorTransferBookshelf",
+        (-0.17, -0.2, 0.0),
+        rotation=(0.0, 0.0, pi / 2),
+        scale=(0.9, 0.9, 0.9),
+    )
+    instance_asset(
+        "ArchiveCrate",
+        door_delivery,
+        "DoorTransferCrate",
+        (0.3, 0.42, 0.0),
+        rotation=(0.0, 0.0, 0.08),
+        scale=(0.68, 0.68, 0.68),
+    )
+    instance_asset(
+        "BookStackTall",
+        door_delivery,
+        "DoorTransferStack",
+        (0.15, 1.34, 0.02),
+        rotation=(0.0, 0.0, -0.09),
+        scale=(0.68, 0.68, 0.68),
+    )
+
+    moisture_growth = create_story_cluster(
+        assembly,
+        "LocalizedMoistureGrowth",
+        (0.0, 0.0, 0.0),
+        "building fabric",
+        "supports sparse growth at damp mortar and threshold joints",
+        "growth remains trimmed away from the circulation route",
+    )
+    instance_asset(
+        "GroundGrowthA",
+        moisture_growth,
+        "VestibuleWallJointGrowth",
+        (-2.35, 0.95, 0.02),
+        rotation=(0.0, 0.0, 0.08),
+        scale=(0.78, 0.78, 0.78),
+    )
+    instance_asset(
+        "GroundGrowthB",
+        moisture_growth,
+        "FirstArchMortarGrowth",
+        (2.35, 8.2, 0.02),
+        rotation=(0.0, 0.0, pi - 0.12),
+        scale=(0.7, 0.7, 0.7),
+    )
+    instance_asset(
+        "GroundGrowthA",
+        moisture_growth,
+        "CorridorDampJointGrowth",
+        (-2.35, 15.2, 0.02),
+        rotation=(0.0, 0.0, 0.12),
+        scale=(0.6, 0.6, 0.6),
+    )
+    instance_asset(
+        "GroundGrowthB",
+        moisture_growth,
+        "DoorThresholdGrowth",
+        (-2.16, 20.05, 0.02),
+        rotation=(0.0, 0.0, 0.2),
+        scale=(0.52, 0.52, 0.52),
+    )
 
     instance_asset(
         "HangingLantern",
@@ -3070,7 +3840,7 @@ def main():
     ]
     linked_instances = sum(
         1
-        for object_ in assembly.children
+        for object_ in assembly.children_recursive
         if object_.type == "MESH"
     )
     print(f"ENTRANCE_BLEND={BLEND_PATH}")
