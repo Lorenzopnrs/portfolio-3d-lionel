@@ -1,17 +1,33 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { Vector3 } from 'three'
+import { Matrix4, Quaternion, Vector3 } from 'three'
+import * as cameraPathModule from './cameraPath.js'
 import {
   CAMERA_HEIGHT,
   CAMERA_LOOK_AHEAD_DISTANCE,
   EVALUATION_STOPS,
   PATH_LENGTH,
   UPPER_LEVEL,
+  getCameraLookAheadDistance,
   getCameraPointAt,
 } from './cameraPath.js'
 
 const SAMPLE_COUNT = 20000
 const GATE_CENTER_TOLERANCE = 0.22
+const TURN_CLEARANCE_SAMPLE_COUNT = 800
+const TURN_MINIMUM_CLEARANCE = 0.4
+const PATH_CAMERA_LOOK_DISTANCE = 6
+const PATH_CAMERA_RESPONSE = 12
+const STRONG_IMPULSE_PROGRESS_STEP =
+  (0.32 * 57.466) / PATH_LENGTH / 30
+const WORLD_UP = new Vector3(0, 1, 0)
+const CAMERA_FORWARD = new Vector3(0, 0, -1)
+const entranceTurnInsideSupport = {
+  maximumX: -15.21,
+  maximumZ: 12.86,
+  minimumX: -16.09,
+  minimumZ: 12.04,
+}
 
 const supportedFloorAreas = [
   [-20.81, -15.19, 20, 30],
@@ -109,6 +125,120 @@ function distanceToRectangle(
   const zDistance = Math.max(minimumZ - point.z, 0, point.z - maximumZ)
 
   return Math.hypot(xDistance, zDistance)
+}
+
+function segmentIntersectsRectangle(
+  start,
+  end,
+  {
+    minimumX,
+    maximumX,
+    minimumZ,
+    maximumZ,
+  },
+) {
+  let minimumTime = 0
+  let maximumTime = 1
+
+  for (const [axis, minimum, maximum] of [
+    ['x', minimumX, maximumX],
+    ['z', minimumZ, maximumZ],
+  ]) {
+    const delta = end[axis] - start[axis]
+
+    if (Math.abs(delta) < 0.000001) {
+      if (start[axis] < minimum || start[axis] > maximum) {
+        return false
+      }
+
+      continue
+    }
+
+    let entryTime = (minimum - start[axis]) / delta
+    let exitTime = (maximum - start[axis]) / delta
+
+    if (entryTime > exitTime) {
+      const previousEntryTime = entryTime
+      entryTime = exitTime
+      exitTime = previousEntryTime
+    }
+
+    minimumTime = Math.max(minimumTime, entryTime)
+    maximumTime = Math.min(maximumTime, exitTime)
+
+    if (minimumTime > maximumTime) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function getTargetCameraQuaternion(progress) {
+  const position = getCameraPointAt(progress)
+  const lookAheadProgress = Math.min(
+    1,
+    progress + getCameraLookAheadDistance(progress) / PATH_LENGTH,
+  )
+  const direction = getCameraPointAt(lookAheadProgress)
+    .sub(position)
+    .setY(0)
+    .normalize()
+  const lookTarget = position
+    .clone()
+    .addScaledVector(direction, PATH_CAMERA_LOOK_DISTANCE)
+  const lookMatrix = new Matrix4().lookAt(
+    position,
+    lookTarget,
+    WORLD_UP,
+  )
+
+  return new Quaternion().setFromRotationMatrix(lookMatrix)
+}
+
+function findBlockedSmoothedOrientation(direction) {
+  const startProgress = direction > 0 ? 0.115 : 0.2
+  const endProgress = direction > 0 ? 0.2 : 0.115
+  const cameraQuaternion = getTargetCameraQuaternion(startProgress)
+
+  for (
+    let progress = startProgress;
+    direction > 0
+      ? progress <= endProgress
+      : progress >= endProgress;
+    progress += direction * STRONG_IMPULSE_PROGRESS_STEP
+  ) {
+    const orientationResponse =
+      cameraPathModule.getCameraOrientationResponse?.(progress) ??
+      PATH_CAMERA_RESPONSE
+    const slerpAlpha =
+      1 - Math.exp(-orientationResponse * (1 / 30))
+    cameraQuaternion.slerp(
+      getTargetCameraQuaternion(progress),
+      slerpAlpha,
+    )
+
+    const position = getCameraPointAt(progress)
+    const directionVector = CAMERA_FORWARD.clone()
+      .applyQuaternion(cameraQuaternion)
+      .setY(0)
+      .normalize()
+    const lookTarget = position
+      .clone()
+      .addScaledVector(directionVector, PATH_CAMERA_LOOK_DISTANCE)
+
+    if (
+      segmentIntersectsRectangle(
+        position,
+        lookTarget,
+        entranceTurnInsideSupport,
+      )
+    ) {
+      return progress
+    }
+  }
+
+  return null
 }
 
 test('camera path crosses the center of every architectural opening', () => {
@@ -225,29 +355,136 @@ test('catalogue stop orientation does not aim into a cloister pier', () => {
   assert.equal(aimsIntoPier, false)
 })
 
-test('entrance turn orientation looks through both connected portals', () => {
-  const progress = 0.13
-  const position = getCameraPointAt(progress)
-  const lookAheadPoint = getCameraPointAt(
+test('entrance turn orientation follows the connected portals', () => {
+  const entranceProgress = 0.135
+  const entrancePosition = getCameraPointAt(entranceProgress)
+  const entranceLookAheadPoint = getCameraPointAt(
     Math.min(
       1,
-      progress + CAMERA_LOOK_AHEAD_DISTANCE / PATH_LENGTH,
+      entranceProgress +
+        getCameraLookAheadDistance(entranceProgress) / PATH_LENGTH,
     ),
   )
-  const direction = lookAheadPoint
-    .sub(position)
+  const entranceDirection = entranceLookAheadPoint
+    .sub(entrancePosition)
     .setY(0)
     .normalize()
   const entrancePortalX =
-    position.x + direction.x * ((13 - position.z) / direction.z)
+    entrancePosition.x +
+    entranceDirection.x *
+      ((13 - entrancePosition.z) / entranceDirection.z)
+
+  const turnProgress = 0.165
+  const turnPosition = getCameraPointAt(turnProgress)
+  const turnLookAheadPoint = getCameraPointAt(
+    Math.min(
+      1,
+      turnProgress +
+        getCameraLookAheadDistance(turnProgress) / PATH_LENGTH,
+    ),
+  )
+  const turnDirection = turnLookAheadPoint
+    .sub(turnPosition)
+    .setY(0)
+    .normalize()
   const sidePortalZ =
-    position.z + direction.z * ((-15 - position.x) / direction.x)
-  const endWallX =
-    position.x + direction.x * ((9.5 - position.z) / direction.z)
+    turnPosition.z +
+    turnDirection.z *
+      ((-15 - turnPosition.x) / turnDirection.x)
+  const turnViewEndpoint = turnPosition
+    .clone()
+    .addScaledVector(turnDirection, PATH_CAMERA_LOOK_DISTANCE)
 
   assert.ok(entrancePortalX >= -19.5 && entrancePortalX <= -16.5)
   assert.ok(sidePortalZ >= 10.4 && sidePortalZ <= 13.6)
-  assert.ok(endWallX > -15)
+  assert.ok(turnViewEndpoint.x > -15)
+  assert.ok(turnViewEndpoint.z >= 9.5 && turnViewEndpoint.z <= 14.5)
+})
+
+test('entrance turn keeps camera clear of the inside support', () => {
+  const turnSamples = Array.from(
+    { length: TURN_CLEARANCE_SAMPLE_COUNT + 1 },
+    (_, index) => {
+      const progress = 0.135 + (index / TURN_CLEARANCE_SAMPLE_COUNT) * 0.05
+      const point = getCameraPointAt(progress)
+      const distance = distanceToRectangle(
+        point,
+        entranceTurnInsideSupport.minimumX,
+        entranceTurnInsideSupport.maximumX,
+        entranceTurnInsideSupport.minimumZ,
+        entranceTurnInsideSupport.maximumZ,
+      )
+
+      return { distance, point, progress }
+    },
+  )
+  const nearestSample = turnSamples.reduce((nearest, sample) =>
+    sample.distance < nearest.distance ? sample : nearest,
+  )
+
+  assert.ok(
+    nearestSample.distance >= TURN_MINIMUM_CLEARANCE,
+    `entrance turn leaves only ${nearestSample.distance.toFixed(3)}m from the inside support at progress ${nearestSample.progress.toFixed(4)}`,
+  )
+})
+
+test('entrance turn orientation does not look through the inside support', () => {
+  const blockedSample = Array.from({ length: 81 }, (_, index) => {
+    const progress = 0.135 + (index / 80) * 0.04
+    const position = getCameraPointAt(progress)
+    const lookAheadProgress = Math.min(
+      1,
+      progress + getCameraLookAheadDistance(progress) / PATH_LENGTH,
+    )
+    const lookAheadPoint = getCameraPointAt(lookAheadProgress)
+    const direction = lookAheadPoint
+      .sub(position)
+      .setY(0)
+      .normalize()
+    const lookTarget = position
+      .clone()
+      .addScaledVector(direction, PATH_CAMERA_LOOK_DISTANCE)
+
+    return {
+      blocked: segmentIntersectsRectangle(
+        position,
+        lookTarget,
+        entranceTurnInsideSupport,
+      ),
+      progress,
+    }
+  }).find(({ blocked }) => blocked)
+
+  assert.equal(
+    blockedSample,
+    undefined,
+    `entrance turn looks through the inside support at progress ${blockedSample?.progress.toFixed(4)}`,
+  )
+})
+
+test('entrance turn smoothed orientation clears the support both ways', () => {
+  for (const [label, direction] of [
+    ['forward', 1],
+    ['backward', -1],
+  ]) {
+    const blockedProgress = findBlockedSmoothedOrientation(direction)
+
+    assert.equal(
+      blockedProgress,
+      null,
+      `${label} strong-impulse orientation intersects the inside support at progress ${blockedProgress?.toFixed(4)}`,
+    )
+  }
+})
+
+test('first project stop remains beyond the provenance gallery', () => {
+  const firstProjectStop = EVALUATION_STOPS.find(
+    (stop) => stop.id === 'project-one',
+  )
+  const position = getCameraPointAt(firstProjectStop.progress)
+
+  assert.ok(position.x >= -7.5 && position.x <= -5.5)
+  assert.ok(Math.abs(position.z - 12) <= GATE_CENTER_TOLERANCE)
 })
 
 test('camera remains at human eye height and finishes inside the threshold', () => {

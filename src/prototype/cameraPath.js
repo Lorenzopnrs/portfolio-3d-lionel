@@ -6,6 +6,14 @@ export const GROUND_LEVEL = 0
 export const UPPER_LEVEL = 4
 export const INITIAL_PROGRESS = 0.018
 
+const ENTRANCE_TURN_LOOK_AHEAD_DISTANCE = 2
+const ENTRANCE_TURN_LOOK_AHEAD_START = 0.122
+const ENTRANCE_TURN_LOOK_AHEAD_IN = 0.135
+const ENTRANCE_TURN_LOOK_AHEAD_OUT = 0.165
+const ENTRANCE_TURN_LOOK_AHEAD_END = 0.19
+const CAMERA_ORIENTATION_RESPONSE = 12
+const ENTRANCE_TURN_ORIENTATION_RESPONSE = 18
+
 function cameraPoint(x, z, floorLevel = GROUND_LEVEL) {
   return new Vector3(x, floorLevel + CAMERA_HEIGHT, z)
 }
@@ -17,12 +25,18 @@ const pathPoints = [
   cameraPoint(-18, 20),
   cameraPoint(-18, 16),
   cameraPoint(-18, 13),
-  cameraPoint(-18, 12.4),
-  cameraPoint(-17.6, 12.1),
-  cameraPoint(-16.5, 12),
-  cameraPoint(-15.8, 12),
-  cameraPoint(-15, 12),
-  cameraPoint(-14.2, 12),
+  cameraPoint(-18, 12.55),
+  cameraPoint(-17.85, 12.15),
+  cameraPoint(-17.5, 11.8),
+  cameraPoint(-17, 11.55),
+  cameraPoint(-16.4, 11.42),
+  cameraPoint(-15.8, 11.4),
+  cameraPoint(-15.3, 11.42),
+  cameraPoint(-14.95, 11.55),
+  cameraPoint(-14.78, 11.96),
+  cameraPoint(-14.45, 12),
+  cameraPoint(-14.1, 12),
+  cameraPoint(-13.7, 12),
   cameraPoint(-12, 12),
   cameraPoint(-9.5, 12),
   cameraPoint(-8.3, 12),
@@ -128,7 +142,7 @@ const stopTargets = [
   {
     id: 'project-one',
     label: 'First project room',
-    point: cameraPoint(-11.5, 12),
+    point: cameraPoint(-6.5, 12),
   },
   {
     id: 'catalogue',
@@ -190,6 +204,53 @@ export const EVALUATION_STOPS = Object.freeze(
 
 export function clampProgress(progress) {
   return Math.min(1, Math.max(0, progress))
+}
+
+function smoothstep(minimum, maximum, value) {
+  const normalized = clampProgress(
+    (value - minimum) / (maximum - minimum),
+  )
+  return normalized * normalized * (3 - 2 * normalized)
+}
+
+function getEntranceTurnWeight(progress) {
+  const clampedProgress = clampProgress(progress)
+  const turnIn = smoothstep(
+    ENTRANCE_TURN_LOOK_AHEAD_START,
+    ENTRANCE_TURN_LOOK_AHEAD_IN,
+    clampedProgress,
+  )
+  const turnOut =
+    1 -
+    smoothstep(
+      ENTRANCE_TURN_LOOK_AHEAD_OUT,
+      ENTRANCE_TURN_LOOK_AHEAD_END,
+      clampedProgress,
+    )
+
+  return Math.min(turnIn, turnOut)
+}
+
+export function getCameraLookAheadDistance(progress) {
+  const turnWeight = getEntranceTurnWeight(progress)
+
+  return (
+    CAMERA_LOOK_AHEAD_DISTANCE +
+    (ENTRANCE_TURN_LOOK_AHEAD_DISTANCE -
+      CAMERA_LOOK_AHEAD_DISTANCE) *
+      turnWeight
+  )
+}
+
+export function getCameraOrientationResponse(progress) {
+  const turnWeight = getEntranceTurnWeight(progress)
+
+  return (
+    CAMERA_ORIENTATION_RESPONSE +
+    (ENTRANCE_TURN_ORIENTATION_RESPONSE -
+      CAMERA_ORIENTATION_RESPONSE) *
+      turnWeight
+  )
 }
 
 export function getCameraPointAt(progress, target) {

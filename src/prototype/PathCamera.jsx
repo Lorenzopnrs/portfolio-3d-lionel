@@ -2,9 +2,10 @@ import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Matrix4, Quaternion, Vector3 } from 'three'
 import {
-  CAMERA_LOOK_AHEAD_DISTANCE,
   PATH_LENGTH,
   cameraPath,
+  getCameraLookAheadDistance,
+  getCameraOrientationResponse,
   getCameraPointAt,
 } from './cameraPath'
 import { updateMovement } from './movementController'
@@ -29,9 +30,12 @@ export function PathCamera({ movementRef, onTelemetry }) {
     updateMovement(movement, delta)
 
     getCameraPointAt(movement.progress, position.current)
+    const lookAheadDistance = getCameraLookAheadDistance(
+      movement.progress,
+    )
     const lookAheadProgress = Math.min(
       1,
-      movement.progress + CAMERA_LOOK_AHEAD_DISTANCE / PATH_LENGTH,
+      movement.progress + lookAheadDistance / PATH_LENGTH,
     )
     getCameraPointAt(lookAheadProgress, lookAheadPoint.current)
     tangent.current.subVectors(lookAheadPoint.current, position.current)
@@ -54,11 +58,17 @@ export function PathCamera({ movementRef, onTelemetry }) {
       WORLD_UP,
     )
     targetQuaternion.current.setFromRotationMatrix(lookMatrix.current)
+    const orientationResponse = getCameraOrientationResponse(
+      movement.progress,
+    )
 
     camera.position.copy(position.current)
     camera.quaternion.slerp(
       targetQuaternion.current,
-      1 - Math.exp(-12 * Math.min(delta, 1 / 30)),
+      1 -
+        Math.exp(
+          -orientationResponse * Math.min(delta, 1 / 30),
+        ),
     )
     camera.up.copy(WORLD_UP)
 

@@ -13,6 +13,7 @@ import {
 import { BLOCKOUT_COLORS } from './blockoutPalette'
 import { EVALUATION_STOPS, getPathPlacement } from './cameraPath'
 import { EntranceVerticalSlice } from '../vertical-slice/EntranceVerticalSlice'
+import { ProvenanceGallery } from '../vertical-slice/ProvenanceGallery'
 
 const groundArcadeX = [-4.5, -1.5, 1.5, 4.5]
 const groundArcadeZ = [-6, -2, 2, 6]
@@ -127,25 +128,9 @@ function Cloister() {
   )
 }
 
-function FirstProjectRoom() {
+function FirstProjectRoomBlockout() {
   return (
     <group>
-      <VaultedPassage
-        height={5.4}
-        length={7.5}
-        position={[-11.25, 0, 12]}
-        ribCount={3}
-        rotation={[0, Math.PI / 2, 0]}
-        width={9}
-      />
-      <PortalWall
-        openingHeight={4.4}
-        openingWidth={3.4}
-        position={[-7.5, 0, 12]}
-        rotation={[0, Math.PI / 2, 0]}
-        wallHeight={5.4}
-        wallWidth={9}
-      />
       <VaultedPassage
         height={4.6}
         length={2}
@@ -460,7 +445,8 @@ export function PrototypeEnvironment() {
     <>
       <Cloister />
       <EntranceVerticalSlice />
-      <FirstProjectRoom />
+      <ProvenanceGallery />
+      <FirstProjectRoomBlockout />
       <CatalogueCrossing />
       <SecondProjectRoom />
       <AscendingGallery />
