@@ -1,4 +1,5 @@
 import { EntranceAssetLibrary } from './EntranceAssetLibrary'
+import { AboutPortal } from './AboutPortal'
 
 function EntranceLighting() {
   return (
@@ -7,8 +8,8 @@ function EntranceLighting() {
         castShadow
         color="#ff9d4d"
         decay={2}
-        distance={6.2}
-        intensity={22}
+        distance={7}
+        intensity={29.1}
         position={[-18, 3.25, 25]}
         shadow-bias={-0.0006}
         shadow-mapSize-height={512}
@@ -32,8 +33,8 @@ function EntranceLighting() {
       <pointLight
         color="#f59a45"
         decay={2}
-        distance={5.8}
-        intensity={18}
+        distance={6.1}
+        intensity={20.7}
         position={[-18, 3.18, 16.65]}
       />
       <pointLight
@@ -69,10 +70,17 @@ function EntranceLighting() {
   )
 }
 
-export function EntranceVerticalSlice() {
+export function EntranceVerticalSlice({
+  onAboutOpen,
+  reducedMotionEnabled,
+}) {
   return (
     <group name="entrance-vertical-slice">
       <EntranceAssetLibrary position={[-18, 0, 30]} />
+      <AboutPortal
+        onActivate={onAboutOpen}
+        reducedMotionEnabled={reducedMotionEnabled}
+      />
       <EntranceLighting />
     </group>
   )

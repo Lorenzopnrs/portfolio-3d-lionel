@@ -1,7 +1,6 @@
 import { Suspense, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
 import {
-  createContinuousRunnerGeometry,
   createEntranceMaterialResources,
   createRestoredRunnerMaterial,
   prepareEntranceMaterial,
@@ -11,7 +10,8 @@ const MODEL_URL = '/models/entrance-asset-library.glb'
 const RUNNER_TEXTURE_URL =
   '/textures/vertical-slice/worn-runner-albedo.jpg'
 const ASSEMBLY_NAME = 'EntranceAssembly'
-const RUNNER_NAME_PATTERN = /^EntranceRunner_(\d+)$/
+const RUNNER_NAME = 'EntranceRunner'
+const DESTINATION_DOOR_NAME = 'CorridorEndDoor'
 
 function collectSourceMaterials(scene) {
   const sourceMaterials = new Map()
@@ -47,7 +47,7 @@ function EntranceAssemblyModel(props) {
     [scene],
   )
   const runnerUvChannel = useMemo(() => {
-    const runner = scene.getObjectByName('EntranceRunner_00')
+    const runner = scene.getObjectByName(RUNNER_NAME)
     return runner?.geometry?.getAttribute('uv1') ? 1 : 0
   }, [scene])
   const runnerMaterial = useMemo(
@@ -68,6 +68,17 @@ function EntranceAssemblyModel(props) {
 
       const preparedAssembly = sourceAssembly.clone(true)
       const materialCache = new Map()
+      const destinationDoor = preparedAssembly.getObjectByName(
+        DESTINATION_DOOR_NAME,
+      )
+
+      if (!destinationDoor) {
+        throw new Error(
+          `Missing GLB object: ${DESTINATION_DOOR_NAME}`,
+        )
+      }
+
+      destinationDoor.visible = false
 
       preparedAssembly.traverse((object) => {
         if (!object.isMesh) {
@@ -77,13 +88,7 @@ function EntranceAssemblyModel(props) {
         object.castShadow = true
         object.receiveShadow = true
 
-        const runnerMatch = RUNNER_NAME_PATTERN.exec(object.name)
-        if (runnerMatch) {
-          object.geometry = createContinuousRunnerGeometry(
-            object.geometry,
-            Number(runnerMatch[1]),
-            runnerUvChannel,
-          )
+        if (object.name === RUNNER_NAME) {
           object.material = runnerMaterial
           return
         }
@@ -112,7 +117,6 @@ function EntranceAssemblyModel(props) {
     [
       materialResources,
       runnerMaterial,
-      runnerUvChannel,
       scene,
       sourceMaterials,
     ],

@@ -6,13 +6,9 @@ export const GROUND_LEVEL = 0
 export const UPPER_LEVEL = 4
 export const INITIAL_PROGRESS = 0.018
 
-const ENTRANCE_TURN_LOOK_AHEAD_DISTANCE = 2
-const ENTRANCE_TURN_LOOK_AHEAD_START = 0.122
-const ENTRANCE_TURN_LOOK_AHEAD_IN = 0.135
-const ENTRANCE_TURN_LOOK_AHEAD_OUT = 0.165
-const ENTRANCE_TURN_LOOK_AHEAD_END = 0.19
 const CAMERA_ORIENTATION_RESPONSE = 12
-const ENTRANCE_TURN_ORIENTATION_RESPONSE = 18
+const TURN_ORIENTATION_RESPONSE = 18
+const PROJECT_FOCUS_ORIENTATION_RESPONSE = 30
 
 function cameraPoint(x, z, floorLevel = GROUND_LEVEL) {
   return new Vector3(x, floorLevel + CAMERA_HEIGHT, z)
@@ -41,81 +37,38 @@ const pathPoints = [
   cameraPoint(-9.5, 12),
   cameraPoint(-8.3, 12),
   cameraPoint(-7.5, 12),
-  cameraPoint(-6.8, 12),
-  cameraPoint(-5.5, 12),
-  cameraPoint(-4.8, 12),
-  cameraPoint(-3.8, 11.8),
-  cameraPoint(-3, 11.4),
-  cameraPoint(-2.3, 10.7),
-  cameraPoint(-1.7, 9.8),
-  cameraPoint(-0.8, 9.25),
-  cameraPoint(0.3, 9.2),
-  cameraPoint(1.5, 9.45),
-  cameraPoint(2.5, 10),
-  cameraPoint(3.4, 10.8),
-  cameraPoint(4.3, 11.3),
-  cameraPoint(5, 11.5),
-  cameraPoint(5.5, 11.5),
-  cameraPoint(6.2, 11.5),
-  cameraPoint(7, 11.5),
-  cameraPoint(7.8, 11.5),
-  cameraPoint(9.5, 11.5),
-  cameraPoint(10.6, 11.4),
-  cameraPoint(11.3, 10.8),
-  cameraPoint(11.5, 10),
-  cameraPoint(11.5, 8.5),
-  cameraPoint(11.5, 7.7),
-  cameraPoint(11.5, 7),
-  cameraPoint(11.45, 6.95),
-  cameraPoint(10.8, 6.8),
-  cameraPoint(10.3, 6.5),
-  cameraPoint(9.9, 6.15),
-  cameraPoint(9.6, 5.85),
-  cameraPoint(9.5, 5.75, 0.08),
-  cameraPoint(9.5, 4, 0.67),
-  cameraPoint(9.5, 2, 1.33),
-  cameraPoint(9.5, 0, 2),
-  cameraPoint(9.5, -2, 2.67),
-  cameraPoint(9.5, -4, 3.33),
-  cameraPoint(9.5, -6, UPPER_LEVEL),
-  cameraPoint(9.5, -7.5, UPPER_LEVEL),
-  cameraPoint(9.5, -8.5, UPPER_LEVEL),
-  cameraPoint(9.5, -9.5, UPPER_LEVEL),
-  cameraPoint(9.5, -11.3, UPPER_LEVEL),
-  cameraPoint(8, -12.2, UPPER_LEVEL),
-  cameraPoint(6.5, -12.5, UPPER_LEVEL),
-  cameraPoint(4, -12.5, UPPER_LEVEL),
-  cameraPoint(1, -12.5, UPPER_LEVEL),
-  cameraPoint(-2.5, -12.5, UPPER_LEVEL),
-  cameraPoint(-4.8, -12.5, UPPER_LEVEL),
-  cameraPoint(-5.8, -12.5, UPPER_LEVEL),
-  cameraPoint(-6.5, -12.5, UPPER_LEVEL),
-  cameraPoint(-7.2, -12.5, UPPER_LEVEL),
-  cameraPoint(-8, -12.3, UPPER_LEVEL),
-  cameraPoint(-8.7, -11.7, UPPER_LEVEL),
-  cameraPoint(-9, -10.8, UPPER_LEVEL),
-  cameraPoint(-9, -9.8, UPPER_LEVEL),
-  cameraPoint(-9, -9, UPPER_LEVEL),
-  cameraPoint(-9, -8.2, UPPER_LEVEL),
-  cameraPoint(-9, -6, UPPER_LEVEL),
-  cameraPoint(-9, -3, UPPER_LEVEL),
-  cameraPoint(-9, -1.8, UPPER_LEVEL),
-  cameraPoint(-9, -1, UPPER_LEVEL),
-  cameraPoint(-9, -0.2, UPPER_LEVEL),
-  cameraPoint(-9, 2.5, UPPER_LEVEL),
-  cameraPoint(-9, 4.8, UPPER_LEVEL),
-  cameraPoint(-9, 5.8, UPPER_LEVEL),
-  cameraPoint(-9.1, 6.4, UPPER_LEVEL),
-  cameraPoint(-9.6, 6.9, UPPER_LEVEL),
-  cameraPoint(-10.3, 7, UPPER_LEVEL),
-  cameraPoint(-10.8, 7, UPPER_LEVEL),
-  cameraPoint(-11.5, 7, UPPER_LEVEL),
-  cameraPoint(-12.2, 7, UPPER_LEVEL),
-  cameraPoint(-13.5, 7, UPPER_LEVEL),
-  cameraPoint(-14.7, 7, UPPER_LEVEL),
-  cameraPoint(-15.4, 7, UPPER_LEVEL),
-  cameraPoint(-16, 7, UPPER_LEVEL),
-  cameraPoint(-17.2, 7, UPPER_LEVEL),
+  cameraPoint(-6.9, 12),
+  cameraPoint(-6.2, 12),
+  cameraPoint(-5.4, 12),
+  cameraPoint(-4.2, 12),
+  cameraPoint(-2.8, 12),
+  cameraPoint(-1.2, 12),
+  cameraPoint(0.4, 12),
+  cameraPoint(1.8, 12),
+  cameraPoint(2.7, 11.95),
+  cameraPoint(3.25, 11.75),
+  cameraPoint(3.7, 11.4),
+  cameraPoint(4, 10.9),
+  cameraPoint(4.15, 10.25),
+  cameraPoint(4.2, 9.7),
+  cameraPoint(4.2, 9),
+  cameraPoint(4.2, 8.4),
+  cameraPoint(4.2, 7.6),
+  cameraPoint(4.2, 6.8),
+  cameraPoint(4.2, 6),
+  cameraPoint(4.2, 5.4),
+  cameraPoint(4.3, 4.9),
+  cameraPoint(4.55, 4.5),
+  cameraPoint(5, 4.2),
+  cameraPoint(5.55, 4.05),
+  cameraPoint(6.05, 4),
+  cameraPoint(6.5, 4),
+  cameraPoint(7, 4),
+  cameraPoint(7.8, 4),
+  cameraPoint(8.8, 4),
+  cameraPoint(9.7, 4),
+  cameraPoint(10.5, 4),
+  cameraPoint(11.1, 4),
 ]
 
 export const cameraPath = new CatmullRomCurve3(
@@ -130,49 +83,29 @@ export const PATH_LENGTH = cameraPath.getLength()
 
 const stopTargets = [
   {
-    id: 'vestibule',
-    label: 'Introductory vestibule',
+    id: 'entrance',
+    label: 'Welcome entrance',
     point: cameraPoint(-18, 25),
   },
   {
-    id: 'provenance',
-    label: 'Provenance gallery',
-    point: cameraPoint(-18, 18),
+    id: 'about',
+    label: 'About Me gallery',
+    point: cameraPoint(-11.4, 12),
   },
   {
-    id: 'project-one',
-    label: 'First project room',
-    point: cameraPoint(-6.5, 12),
+    id: 'projects',
+    label: 'Project gallery',
+    point: cameraPoint(-0.6, 12),
   },
   {
-    id: 'catalogue',
-    label: 'Catalogue crossing',
-    point: cameraPoint(0.3, 9.2),
+    id: 'social',
+    label: 'Social Networks',
+    point: cameraPoint(4.2, 5.5),
   },
   {
-    id: 'project-two',
-    label: 'Second project room',
-    point: cameraPoint(11.5, 10),
-  },
-  {
-    id: 'ascent',
-    label: 'Ascending transition',
-    point: cameraPoint(9.5, 0, 2),
-  },
-  {
-    id: 'manifesto',
-    label: 'Manifesto-project space',
-    point: cameraPoint(2, -12.5, UPPER_LEVEL),
-  },
-  {
-    id: 'personal',
-    label: 'Personal and contact space',
-    point: cameraPoint(-9, -5, UPPER_LEVEL),
-  },
-  {
-    id: 'threshold',
-    label: 'Final unfinished threshold',
-    point: cameraPoint(-12.3, 7, UPPER_LEVEL),
+    id: 'contact',
+    label: 'Contact / Unfinished Wing',
+    point: cameraPoint(9.4, 4),
   },
 ]
 
@@ -202,6 +135,75 @@ export const EVALUATION_STOPS = Object.freeze(
   })),
 )
 
+export const PROJECT_GALLERY_PROGRESS_RANGE = Object.freeze({
+  start: findClosestProgress(cameraPoint(-7.5, 12)),
+  end: findClosestProgress(cameraPoint(4.2, 8.7)),
+})
+
+const PROJECT_FOCUS_ZONES = Object.freeze(
+  [
+    {
+      start: cameraPoint(-7.5, 12),
+      peakIn: cameraPoint(-7.2, 12),
+      peakOut: cameraPoint(-5.5, 12),
+      end: cameraPoint(-4.7, 12),
+      target: cameraPoint(-4.95, 14.785),
+    },
+    {
+      start: cameraPoint(-4.8, 12),
+      peakIn: cameraPoint(-4.3, 12),
+      peakOut: cameraPoint(-1.9, 12),
+      end: cameraPoint(-1, 12),
+      target: cameraPoint(-1.25, 9.19),
+    },
+    {
+      start: cameraPoint(-1.1, 12),
+      peakIn: cameraPoint(-0.6, 12),
+      peakOut: cameraPoint(1.4, 12),
+      end: cameraPoint(2.2, 12),
+      target: cameraPoint(2.05, 14.78),
+    },
+  ].map((zone) => ({
+    start: findClosestProgress(zone.start),
+    peakIn: findClosestProgress(zone.peakIn),
+    peakOut: findClosestProgress(zone.peakOut),
+    end: findClosestProgress(zone.end),
+    target: zone.target,
+  })),
+)
+
+const TURN_ZONES = Object.freeze(
+  [
+    {
+      start: cameraPoint(-18, 14.5),
+      peakIn: cameraPoint(-18, 13.2),
+      peakOut: cameraPoint(-15.1, 11.5),
+      end: cameraPoint(-13.7, 12),
+      lookAheadDistance: 2,
+    },
+    {
+      start: cameraPoint(2.3, 12),
+      peakIn: cameraPoint(3.25, 11.75),
+      peakOut: cameraPoint(4.2, 9.7),
+      end: cameraPoint(4.2, 8.3),
+      lookAheadDistance: 2.2,
+    },
+    {
+      start: cameraPoint(4.2, 6.2),
+      peakIn: cameraPoint(4.3, 4.9),
+      peakOut: cameraPoint(5.55, 4.05),
+      end: cameraPoint(7, 4),
+      lookAheadDistance: 2,
+    },
+  ].map((zone) => ({
+    start: findClosestProgress(zone.start),
+    peakIn: findClosestProgress(zone.peakIn),
+    peakOut: findClosestProgress(zone.peakOut),
+    end: findClosestProgress(zone.end),
+    lookAheadDistance: zone.lookAheadDistance,
+  })),
+)
+
 export function clampProgress(progress) {
   return Math.min(1, Math.max(0, progress))
 }
@@ -213,44 +215,89 @@ function smoothstep(minimum, maximum, value) {
   return normalized * normalized * (3 - 2 * normalized)
 }
 
-function getEntranceTurnWeight(progress) {
+function getTurnWeight(progress, zone) {
   const clampedProgress = clampProgress(progress)
   const turnIn = smoothstep(
-    ENTRANCE_TURN_LOOK_AHEAD_START,
-    ENTRANCE_TURN_LOOK_AHEAD_IN,
+    zone.start,
+    zone.peakIn,
     clampedProgress,
   )
   const turnOut =
     1 -
     smoothstep(
-      ENTRANCE_TURN_LOOK_AHEAD_OUT,
-      ENTRANCE_TURN_LOOK_AHEAD_END,
+      zone.peakOut,
+      zone.end,
       clampedProgress,
     )
 
   return Math.min(turnIn, turnOut)
 }
 
-export function getCameraLookAheadDistance(progress) {
-  const turnWeight = getEntranceTurnWeight(progress)
+export function applyCameraFocusTarget(
+  progress,
+  cameraPosition,
+  lookTarget,
+) {
+  let strongestWeight = 0
+  let strongestTarget = null
 
-  return (
-    CAMERA_LOOK_AHEAD_DISTANCE +
-    (ENTRANCE_TURN_LOOK_AHEAD_DISTANCE -
-      CAMERA_LOOK_AHEAD_DISTANCE) *
-      turnWeight
-  )
+  for (const zone of PROJECT_FOCUS_ZONES) {
+    const weight = getTurnWeight(progress, zone)
+
+    if (weight > strongestWeight) {
+      strongestWeight = weight
+      strongestTarget = zone.target
+    }
+  }
+
+  if (strongestTarget) {
+    lookTarget.lerp(strongestTarget, strongestWeight)
+    lookTarget.y = cameraPosition.y
+  }
+
+  return lookTarget
 }
 
-export function getCameraOrientationResponse(progress) {
-  const turnWeight = getEntranceTurnWeight(progress)
+export function getCameraLookAheadDistance(progress) {
+  return TURN_ZONES.reduce((distance, zone) => {
+    const turnWeight = getTurnWeight(progress, zone)
+    const turnDistance =
+      CAMERA_LOOK_AHEAD_DISTANCE +
+      (zone.lookAheadDistance - CAMERA_LOOK_AHEAD_DISTANCE) *
+        turnWeight
 
-  return (
-    CAMERA_ORIENTATION_RESPONSE +
-    (ENTRANCE_TURN_ORIENTATION_RESPONSE -
-      CAMERA_ORIENTATION_RESPONSE) *
-      turnWeight
-  )
+    return Math.min(distance, turnDistance)
+  }, CAMERA_LOOK_AHEAD_DISTANCE)
+}
+
+export function getCameraOrientationResponse(
+  progress,
+  projectFocusEnabled = true,
+) {
+  const turnResponse = TURN_ZONES.reduce((response, zone) => {
+    const turnWeight = getTurnWeight(progress, zone)
+    const turnResponse =
+      CAMERA_ORIENTATION_RESPONSE +
+      (TURN_ORIENTATION_RESPONSE - CAMERA_ORIENTATION_RESPONSE) *
+        turnWeight
+
+    return Math.max(response, turnResponse)
+  }, CAMERA_ORIENTATION_RESPONSE)
+
+  if (!projectFocusEnabled) {
+    return turnResponse
+  }
+
+  return PROJECT_FOCUS_ZONES.reduce((response, zone) => {
+    const focusWeight = getTurnWeight(progress, zone)
+    const focusResponse =
+      CAMERA_ORIENTATION_RESPONSE +
+      (PROJECT_FOCUS_ORIENTATION_RESPONSE -
+        CAMERA_ORIENTATION_RESPONSE) *
+        focusWeight
+
+    return Math.max(response, focusResponse)
+  }, turnResponse)
 }
 
 export function getCameraPointAt(progress, target) {

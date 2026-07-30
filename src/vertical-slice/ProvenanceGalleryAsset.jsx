@@ -1,13 +1,17 @@
 import { Suspense, useMemo } from 'react'
-import { useGLTF } from '@react-three/drei'
+import { useGLTF, useTexture } from '@react-three/drei'
 import {
   createEntranceMaterialResources,
+  createRestoredRunnerMaterial,
   prepareEntranceMaterial,
 } from './entranceMaterialSystem'
 
 const MODEL_URL = '/models/provenance-gallery.glb'
 const ENTRANCE_MODEL_URL = '/models/entrance-asset-library.glb'
+const RUNNER_TEXTURE_URL =
+  '/textures/vertical-slice/worn-runner-albedo.jpg'
 const ASSEMBLY_NAME = 'ProvenanceGalleryAssembly'
+const RUNNER_NAME = 'ProvenanceRunner'
 const GALLERY_COLOR_OVERRIDES = {
   AgedStone: '#25221d',
   DarkMortar: '#0f100d',
@@ -98,6 +102,7 @@ function prepareGalleryMaterial(options) {
 function ProvenanceGalleryModel(props) {
   const { scene } = useGLTF(MODEL_URL)
   const { scene: entranceScene } = useGLTF(ENTRANCE_MODEL_URL)
+  const runnerTexture = useTexture(RUNNER_TEXTURE_URL)
   const materialResources = useMemo(
     () => createEntranceMaterialResources(),
     [],
@@ -105,6 +110,18 @@ function ProvenanceGalleryModel(props) {
   const sourceMaterials = useMemo(
     () => collectSourceMaterials(entranceScene),
     [entranceScene],
+  )
+  const runnerUvChannel = useMemo(() => {
+    const runner = scene.getObjectByName(RUNNER_NAME)
+    return runner?.geometry?.getAttribute('uv1') ? 1 : 0
+  }, [scene])
+  const runnerMaterial = useMemo(
+    () =>
+      createRestoredRunnerMaterial(
+        runnerTexture,
+        runnerUvChannel,
+      ),
+    [runnerTexture, runnerUvChannel],
   )
   const assembly = useMemo(() => {
     const sourceAssembly = scene.getObjectByName(ASSEMBLY_NAME)
@@ -124,6 +141,12 @@ function ProvenanceGalleryModel(props) {
 
       object.castShadow = true
       object.receiveShadow = true
+
+      if (object.name === RUNNER_NAME) {
+        object.material = runnerMaterial
+        return
+      }
+
       object.material = Array.isArray(object.material)
         ? object.material.map((material) =>
             prepareGalleryMaterial({
@@ -146,7 +169,7 @@ function ProvenanceGalleryModel(props) {
     })
 
     return preparedAssembly
-  }, [materialResources, scene, sourceMaterials])
+  }, [materialResources, runnerMaterial, scene, sourceMaterials])
 
   if (!assembly) {
     throw new Error(`Missing GLB assembly: ${ASSEMBLY_NAME}`)
@@ -169,3 +192,4 @@ export function ProvenanceGalleryAsset(props) {
 
 useGLTF.preload(MODEL_URL)
 useGLTF.preload(ENTRANCE_MODEL_URL)
+useTexture.preload(RUNNER_TEXTURE_URL)

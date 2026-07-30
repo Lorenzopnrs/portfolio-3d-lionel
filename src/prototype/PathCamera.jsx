@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Matrix4, Quaternion, Vector3 } from 'three'
 import {
   PATH_LENGTH,
+  applyCameraFocusTarget,
   cameraPath,
   getCameraLookAheadDistance,
   getCameraOrientationResponse,
@@ -52,6 +53,14 @@ export function PathCamera({ movementRef, onTelemetry }) {
       .addScaledVector(tangent.current, 6)
     lookTarget.current.y = position.current.y
 
+    if (!movement.reducedMotion) {
+      applyCameraFocusTarget(
+        movement.progress,
+        position.current,
+        lookTarget.current,
+      )
+    }
+
     lookMatrix.current.lookAt(
       position.current,
       lookTarget.current,
@@ -60,6 +69,7 @@ export function PathCamera({ movementRef, onTelemetry }) {
     targetQuaternion.current.setFromRotationMatrix(lookMatrix.current)
     const orientationResponse = getCameraOrientationResponse(
       movement.progress,
+      !movement.reducedMotion,
     )
 
     camera.position.copy(position.current)

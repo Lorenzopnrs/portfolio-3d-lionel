@@ -5,10 +5,22 @@ function ProvenanceGalleryLighting() {
     <>
       <pointLight
         castShadow
+        color="#f6a154"
+        decay={2}
+        distance={4.9}
+        intensity={32.2}
+        position={[-14.18, 2.08, 14.08]}
+        shadow-bias={-0.0006}
+        shadow-mapSize-height={256}
+        shadow-mapSize-width={256}
+        shadow-normalBias={0.04}
+      />
+      <pointLight
+        castShadow
         color="#ff9d52"
         decay={2}
-        distance={3.5}
-        intensity={8.5}
+        distance={3.7}
+        intensity={9.8}
         position={[-9.55, 2.08, 14.08]}
         shadow-bias={-0.0006}
         shadow-mapSize-height={512}
@@ -28,6 +40,13 @@ function ProvenanceGalleryLighting() {
         distance={2.7}
         intensity={4.5}
         position={[-8.62, 1.55, 10.45]}
+      />
+      <pointLight
+        color="#baa78f"
+        decay={2}
+        distance={9}
+        intensity={10}
+        position={[-11.15, 1.2, 12]}
       />
       <rectAreaLight
         color="#9ba9aa"

@@ -1,4 +1,5 @@
 from math import cos, pi, radians, sin
+import os
 from pathlib import Path
 from random import Random
 
@@ -671,7 +672,8 @@ def create_stone_wall_module(name, seed, catalog_location):
     randomizer = Random(seed)
     wall_length = 4.5
     wall_height = 3.2
-    course_height = 0.64
+    course_count = 8
+    course_height = wall_height / course_count
 
     create_box(
         f"{name}MortarCore",
@@ -682,40 +684,43 @@ def create_stone_wall_module(name, seed, catalog_location):
         bevel=0.02,
     )
 
-    for course in range(5):
+    for course in range(course_count):
         course_bottom = course * course_height
-        y_cursor = -wall_length / 2 - (0.42 if course % 2 else 0.0)
+        y_cursor = -wall_length / 2 - (0.24 if course % 2 else 0.0)
         block_index = 0
 
         while y_cursor < wall_length / 2:
-            block_length = randomizer.uniform(0.72, 1.08)
-            block_center = y_cursor + block_length / 2
+            block_length = randomizer.uniform(0.42, 0.72)
             clipped_start = max(y_cursor, -wall_length / 2)
             clipped_end = min(y_cursor + block_length, wall_length / 2)
             visible_length = clipped_end - clipped_start
 
-            if visible_length > 0.16:
+            if visible_length > 0.12:
                 create_box(
                     f"{name}Block_{course:02d}_{block_index:02d}",
                     (
-                        0.11 + randomizer.uniform(-0.012, 0.018),
-                        visible_length - 0.035,
-                        course_height - randomizer.uniform(0.035, 0.075),
+                        0.105 + randomizer.uniform(-0.01, 0.014),
+                        visible_length - 0.026,
+                        course_height - randomizer.uniform(0.022, 0.045),
                     ),
                     (
-                        0.355 + randomizer.uniform(-0.008, 0.018),
+                        0.355 + randomizer.uniform(-0.006, 0.012),
                         (clipped_start + clipped_end) / 2,
                         course_bottom
                         + course_height / 2
-                        + randomizer.uniform(-0.012, 0.012),
+                        + randomizer.uniform(-0.006, 0.006),
                     ),
-                    MATERIALS["stone"],
+                    MATERIALS[
+                        "stone_worn"
+                        if (course + block_index) % 11 == 0
+                        else "stone"
+                    ],
                     root,
-                    bevel=0.026,
+                    bevel=0.02,
                     rotation=(
-                        randomizer.uniform(-0.007, 0.007),
-                        randomizer.uniform(-0.01, 0.01),
-                        randomizer.uniform(-0.006, 0.006),
+                        randomizer.uniform(-0.003, 0.003),
+                        randomizer.uniform(-0.004, 0.004),
+                        randomizer.uniform(-0.004, 0.004),
                     ),
                 )
 
@@ -824,31 +829,31 @@ def create_floor_slab_module(catalog_location):
             x_position = (
                 -width / 2
                 + slab_width * (column + 0.5)
-                + (0.1 if row % 2 else -0.04)
+                + (0.035 if row % 2 else -0.018)
             )
             y_position = -length / 2 + slab_length * (row + 0.5)
-            x_position += randomizer.uniform(-0.035, 0.035)
-            y_position += randomizer.uniform(-0.035, 0.035)
+            x_position += randomizer.uniform(-0.012, 0.012)
+            y_position += randomizer.uniform(-0.012, 0.012)
 
             create_box(
                 f"FloorSlab_{row:02d}_{column:02d}",
                 (
-                    slab_width - randomizer.uniform(0.055, 0.11),
-                    slab_length - randomizer.uniform(0.055, 0.11),
-                    randomizer.uniform(0.07, 0.11),
+                    slab_width - randomizer.uniform(0.026, 0.052),
+                    slab_length - randomizer.uniform(0.026, 0.052),
+                    randomizer.uniform(0.078, 0.096),
                 ),
                 (
                     x_position,
                     y_position,
-                    randomizer.uniform(-0.012, 0.012),
+                    randomizer.uniform(-0.004, 0.004),
                 ),
                 MATERIALS["floor"],
                 root,
                 bevel=0.035,
                 rotation=(
-                    randomizer.uniform(-0.006, 0.006),
-                    randomizer.uniform(-0.006, 0.006),
-                    randomizer.uniform(-0.012, 0.012),
+                    randomizer.uniform(-0.002, 0.002),
+                    randomizer.uniform(-0.002, 0.002),
+                    randomizer.uniform(-0.004, 0.004),
                 ),
             )
 
@@ -1049,7 +1054,7 @@ def create_arch_asset(
     ring_thickness = 0.48 if include_wall else 0.34
     outer_radius = inner_radius + ring_thickness
     spring_height = opening_height - inner_radius
-    segment_count = 13
+    segment_count = 17
 
     if include_wall:
         side_width = total_width / 2 - outer_radius
@@ -1085,7 +1090,7 @@ def create_arch_asset(
                 bevel=0.025,
             )
 
-    course_count = max(4, round(spring_height / 0.58))
+    course_count = max(5, round(spring_height / 0.46))
     course_height = spring_height / course_count
 
     for side in (-1, 1):
@@ -1819,6 +1824,14 @@ def create_destination_door(catalog_location):
     root = create_root("DestinationDoor", "architecture")
 
     create_box(
+        "DestinationDoorArchBacking",
+        (3.32, 0.16, 4.46),
+        (0.0, 0.2, 2.23),
+        MATERIALS["wood_dark"],
+        root,
+        bevel=0.02,
+    )
+    create_box(
         "DestinationDoorRecess",
         (3.08, 0.22, 4.12),
         (0.0, 0.12, 2.06),
@@ -2321,6 +2334,100 @@ def create_runner_asset(name, catalog_location, seed):
                 rotation=(pi / 2, 0.0, 0.0),
             )
 
+    return finalize_asset(root, catalog_location)
+
+
+def create_runner_path_asset(
+    name,
+    catalog_location,
+    points,
+    seed,
+    width=1.42,
+):
+    if len(points) < 2:
+        raise ValueError("Runner path requires at least two points")
+
+    root = create_root(name, "textile_and_dressing")
+    randomizer = Random(seed)
+    route_points = [Vector((point[0], point[1])) for point in points]
+    directions = []
+    cumulative_distances = [0.0]
+
+    for index in range(len(route_points) - 1):
+        direction = route_points[index + 1] - route_points[index]
+
+        if direction.length <= 0.001:
+            raise ValueError("Runner path points must be distinct")
+
+        cumulative_distances.append(
+            cumulative_distances[-1] + direction.length
+        )
+        directions.append(direction.normalized())
+
+    x_segments = 4
+    vertices = []
+    faces = []
+    uv_coordinates = []
+
+    for point_index, point in enumerate(route_points):
+        if point_index == 0:
+            tangent = directions[0].copy()
+        elif point_index == len(route_points) - 1:
+            tangent = directions[-1].copy()
+        else:
+            tangent = directions[point_index - 1] + directions[point_index]
+            tangent.normalize()
+
+        normal = Vector((-tangent.y, tangent.x))
+        distance = cumulative_distances[point_index]
+
+        for x_index in range(x_segments + 1):
+            u = x_index / x_segments
+            lateral_offset = (u - 0.5) * width
+            edge_lift = 0.008 * (abs(u - 0.5) * 2) ** 2
+            z_position = (
+                0.027
+                + edge_lift
+                + 0.003 * sin(distance * 1.7 + seed)
+                + randomizer.uniform(-0.0008, 0.0008)
+            )
+            vertex = point + normal * lateral_offset
+            vertices.append((vertex.x, vertex.y, z_position))
+
+    row_size = x_segments + 1
+
+    for point_index in range(len(route_points) - 1):
+        v0 = cumulative_distances[point_index] / 7.4
+        v1 = cumulative_distances[point_index + 1] / 7.4
+
+        for x_index in range(x_segments):
+            lower_left = point_index * row_size + x_index
+            lower_right = lower_left + 1
+            upper_left = lower_left + row_size
+            upper_right = upper_left + 1
+            faces.append(
+                (lower_left, lower_right, upper_right, upper_left)
+            )
+            u0 = x_index / x_segments
+            u1 = (x_index + 1) / x_segments
+            uv_coordinates.extend(
+                ((u0, v0), (u1, v0), (u1, v1), (u0, v1))
+            )
+
+    runner = create_mesh_object(
+        f"{name}Textile",
+        vertices,
+        faces,
+        MATERIALS["textile"],
+        root,
+        uv_coordinates=uv_coordinates,
+    )
+    solidify = runner.modifiers.new(name="RunnerThickness", type="SOLIDIFY")
+    solidify.thickness = 0.012
+    bpy.context.view_layer.objects.active = runner
+    runner.select_set(True)
+    bpy.ops.object.modifier_apply(modifier=solidify.name)
+    runner.select_set(False)
     return finalize_asset(root, catalog_location)
 
 
@@ -3178,6 +3285,24 @@ def create_asset_library():
         (40.0, 1.0, 0.0),
         29,
     )
+    create_runner_path_asset(
+        "EntranceRunnerPath",
+        (48.0, 1.0, 0.0),
+        (
+            (0.0, 0.0),
+            (0.0, 17.55),
+            (0.1, 17.85),
+            (0.4, 18.15),
+            (0.95, 18.42),
+            (1.65, 18.57),
+            (2.3, 18.58),
+            (2.75, 18.42),
+            (3.02, 18.18),
+            (3.12, 18.0),
+        ),
+        43,
+        width=1.42,
+    )
     create_ivy_asset("IvyModuleA", (37.0, 7.0, 0.0), 71)
     create_ivy_asset("IvyModuleB", (39.0, 7.0, 0.0), 103)
     create_archive_props((37.0, 11.0, 0.0))
@@ -3227,12 +3352,6 @@ def create_entrance_assembly():
             if bay_index % 2 == 0
             else "StoneWallModuleB"
         )
-        runner_asset = (
-            "RunnerModuleA"
-            if bay_index % 2 == 0
-            else "RunnerModuleB"
-        )
-
         instance_asset(
             "FloorSlabModule",
             assembly,
@@ -3273,13 +3392,12 @@ def create_entrance_assembly():
             (2.82, y_position, 0.0),
             rotation=(0.0, 0.0, pi),
         )
-        instance_asset(
-            runner_asset,
-            assembly,
-            f"EntranceRunner_{bay_index:02d}",
-            (0.0, y_position, 0.075),
-            rotation=(0.0, 0.0, pi if bay_index % 2 else 0.0),
-        )
+    instance_asset(
+        "EntranceRunnerPath",
+        assembly,
+        "EntranceRunner",
+        (0.0, 0.0, 0.075),
+    )
 
     support_positions = (0.3, 4.5, 13.5, 17.55)
 
@@ -3777,7 +3895,8 @@ def create_preview_scene():
     cool_area.location = (0.0, 19.5, 4.4)
     look_at(cool_area, (0.0, 12.0, 1.3))
 
-    bpy.ops.render.render(write_still=True)
+    if os.environ.get("BLENDER_SKIP_PREVIEW_RENDER") != "1":
+        bpy.ops.render.render(write_still=True)
     return camera
 
 

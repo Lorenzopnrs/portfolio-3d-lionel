@@ -114,6 +114,8 @@ export function createMovementState() {
     lastReducedWheelTime: -Infinity,
     lastInputTime: -Infinity,
     transition: null,
+    travelLocked: false,
+    lockedProgress: null,
   }
 }
 
@@ -124,7 +126,7 @@ export function setReducedMotion(controller, enabled) {
   controller.lastReducedWheelTime = -Infinity
   controller.transition = null
 
-  if (enabled) {
+  if (enabled && !controller.travelLocked) {
     startReducedTransition(
       controller,
       getNearestStopIndex(controller.progress),
@@ -132,7 +134,35 @@ export function setReducedMotion(controller, enabled) {
   }
 }
 
+export function setTravelLocked(controller, locked) {
+  if (locked === controller.travelLocked) {
+    return
+  }
+
+  if (locked) {
+    controller.travelLocked = true
+    controller.lockedProgress = controller.progress
+    controller.velocity = 0
+    controller.keyboardDirection = 0
+    controller.transition = null
+    return
+  }
+
+  if (controller.lockedProgress !== null) {
+    controller.progress = controller.lockedProgress
+  }
+
+  controller.travelLocked = false
+  controller.lockedProgress = null
+  controller.velocity = 0
+  controller.keyboardDirection = 0
+}
+
 export function applyWheelInput(controller, deltaY, deltaMode) {
+  if (controller.travelLocked) {
+    return false
+  }
+
   const delta = normalizeWheelDelta(deltaY, deltaMode)
 
   if (Math.abs(delta) < 0.1) {
@@ -167,6 +197,10 @@ export function applyWheelInput(controller, deltaY, deltaMode) {
 }
 
 export function applyDirectionalInput(controller, direction) {
+  if (controller.travelLocked) {
+    return
+  }
+
   if (controller.reducedMotion) {
     stepReducedMotion(controller, direction)
     return
@@ -182,6 +216,11 @@ export function applyDirectionalInput(controller, direction) {
 }
 
 export function setKeyboardDirection(controller, direction) {
+  if (controller.travelLocked) {
+    controller.keyboardDirection = 0
+    return
+  }
+
   controller.keyboardDirection = direction
 
   if (direction !== 0 && !controller.reducedMotion) {
@@ -191,6 +230,13 @@ export function setKeyboardDirection(controller, direction) {
 }
 
 export function updateMovement(controller, frameDelta) {
+  if (controller.travelLocked) {
+    controller.progress = controller.lockedProgress
+    controller.velocity = 0
+    controller.keyboardDirection = 0
+    return
+  }
+
   const delta = Math.min(frameDelta, 1 / 30)
 
   if (controller.reducedMotion) {

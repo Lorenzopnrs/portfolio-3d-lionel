@@ -4,10 +4,9 @@ import { Matrix4, Quaternion, Vector3 } from 'three'
 import * as cameraPathModule from './cameraPath.js'
 import {
   CAMERA_HEIGHT,
-  CAMERA_LOOK_AHEAD_DISTANCE,
   EVALUATION_STOPS,
   PATH_LENGTH,
-  UPPER_LEVEL,
+  applyCameraFocusTarget,
   getCameraLookAheadDistance,
   getCameraPointAt,
 } from './cameraPath.js'
@@ -28,60 +27,36 @@ const entranceTurnInsideSupport = {
   minimumX: -16.09,
   minimumZ: 12.04,
 }
+const projectTurnInsideCorner = {
+  minimumX: 1.95,
+  maximumX: 2.8,
+  minimumZ: 8.65,
+  maximumZ: 9.35,
+}
+const socialTurnInsideCorner = {
+  minimumX: 6.25,
+  maximumX: 6.9,
+  minimumZ: 5.55,
+  maximumZ: 6.3,
+}
 
 const supportedFloorAreas = [
   [-20.81, -15.19, 20, 30],
   [-20.56, -15.44, 13, 20],
   [-21, -15, 9.5, 14],
   [-15, -7.5, 6.88, 17.12],
-  [-7.5, -5.5, 9.28, 14.72],
-  [-5.5, 5.5, 8, 15],
-  [5.5, 7, 8.78, 14.22],
-  [7, 16, 7, 16],
-  [8, 13, 5, 8],
-  [7.8, 11.2, -6, 6],
-  [7, 12, -9, -6],
-  [-6.5, 11, -17.12, -7.88],
-  [-10, -5.5, -13, -8],
-  [-12.12, -5.88, -9, -1],
-  [-12.12, -5.88, -1, 7],
-  [-11.5, -9, 6, 8],
-  [-22.5, -11.5, 4.5, 9.5],
+  [-7.5, 5.6, 8.7, 15.3],
+  [1.5, 6.7, 2.2, 12.6],
+  [6.35, 13.5, 1.45, 6.55],
 ]
 
 const doorwayCenters = [
   { label: 'vestibule portal', point: [-18, CAMERA_HEIGHT, 20] },
   { label: 'provenance portal', point: [-18, CAMERA_HEIGHT, 13] },
   { label: 'entrance corner portal', point: [-15, CAMERA_HEIGHT, 12] },
-  { label: 'first project east portal', point: [-7.5, CAMERA_HEIGHT, 12] },
-  { label: 'catalogue west arch', point: [-5.5, CAMERA_HEIGHT, 12] },
-  { label: 'catalogue east arch', point: [5.5, CAMERA_HEIGHT, 11.5] },
-  { label: 'second project west portal', point: [7, CAMERA_HEIGHT, 11.5] },
-  { label: 'second project north portal', point: [11.5, CAMERA_HEIGHT, 7] },
-  {
-    label: 'upper stair portal',
-    point: [9.5, CAMERA_HEIGHT + UPPER_LEVEL, -8.5],
-  },
-  {
-    label: 'manifesto west portal',
-    point: [-6.5, CAMERA_HEIGHT + UPPER_LEVEL, -12.5],
-  },
-  {
-    label: 'personal north portal',
-    point: [-9, CAMERA_HEIGHT + UPPER_LEVEL, -9],
-  },
-  {
-    label: 'personal south portal',
-    point: [-9, CAMERA_HEIGHT + UPPER_LEVEL, -1],
-  },
-  {
-    label: 'final gallery west portal',
-    point: [-11.5, CAMERA_HEIGHT + UPPER_LEVEL, 7],
-  },
-  {
-    label: 'unfinished threshold arch',
-    point: [-15.4, CAMERA_HEIGHT + UPPER_LEVEL, 7],
-  },
+  { label: 'project gallery threshold', point: [-7.5, CAMERA_HEIGHT, 12] },
+  { label: 'project to social arch', point: [4.2, CAMERA_HEIGHT, 9] },
+  { label: 'social to contact arch', point: [6.5, CAMERA_HEIGHT, 4] },
 ]
 
 function samplePath() {
@@ -187,6 +162,7 @@ function getTargetCameraQuaternion(progress) {
   const lookTarget = position
     .clone()
     .addScaledVector(direction, PATH_CAMERA_LOOK_DISTANCE)
+  applyCameraFocusTarget(progress, position, lookTarget)
   const lookMatrix = new Matrix4().lookAt(
     position,
     lookTarget,
@@ -196,9 +172,15 @@ function getTargetCameraQuaternion(progress) {
   return new Quaternion().setFromRotationMatrix(lookMatrix)
 }
 
-function findBlockedSmoothedOrientation(direction) {
-  const startProgress = direction > 0 ? 0.115 : 0.2
-  const endProgress = direction > 0 ? 0.2 : 0.115
+function findBlockedSmoothedOrientation(
+  direction,
+  progressRange,
+  blocker,
+) {
+  const startProgress =
+    direction > 0 ? progressRange.start : progressRange.end
+  const endProgress =
+    direction > 0 ? progressRange.end : progressRange.start
   const cameraQuaternion = getTargetCameraQuaternion(startProgress)
 
   for (
@@ -231,7 +213,7 @@ function findBlockedSmoothedOrientation(direction) {
       segmentIntersectsRectangle(
         position,
         lookTarget,
-        entranceTurnInsideSupport,
+        blocker,
       )
     ) {
       return progress
@@ -255,22 +237,23 @@ test('camera path crosses the center of every architectural opening', () => {
   }
 })
 
-test('ground-level catalogue route clears the south cloister arcade', () => {
+test('project gallery route stays centered between display walls', () => {
   const samples = samplePath()
-  const catalogueSamples = samples.filter(
+  const projectGallerySamples = samples.filter(
     ({ point }) =>
       point.y < CAMERA_HEIGHT + 0.05 &&
-      point.x >= -5.8 &&
-      point.x <= 5.8,
+      point.x >= -7.5 &&
+      point.x <= 2.2,
   )
-  const nearestArcadeSample = catalogueSamples.reduce((nearest, sample) =>
-    sample.point.z < nearest.point.z ? sample : nearest,
+  const minimumZ = Math.min(
+    ...projectGallerySamples.map(({ point }) => point.z),
+  )
+  const maximumZ = Math.max(
+    ...projectGallerySamples.map(({ point }) => point.z),
   )
 
-  assert.ok(
-    nearestArcadeSample.point.z >= 9.1,
-    `catalogue route leaves only ${(nearestArcadeSample.point.z - 8.61).toFixed(3)}m beyond the arcade`,
-  )
+  assert.ok(minimumZ >= 11.9)
+  assert.ok(maximumZ <= 12.1)
 })
 
 test('route stays over supported architecture in both directions', () => {
@@ -292,71 +275,39 @@ test('route stays over supported architecture in both directions', () => {
   }
 })
 
-test('turn into the stair keeps camera clearance from the side wall', () => {
+test('new turns keep camera clearance from both inside corners', () => {
   const samples = samplePath()
-  const nearestWallSample = samples.reduce((nearest, sample) => {
-    const distance = distanceToRectangle(
-      sample.point,
-      11.34,
-      12.06,
-      -6.5,
-      6.5,
+  for (const [label, blocker] of [
+    ['project-to-social', projectTurnInsideCorner],
+    ['social-to-contact', socialTurnInsideCorner],
+  ]) {
+    const nearestSample = samples.reduce((nearest, sample) => {
+      const distance = distanceToRectangle(
+        sample.point,
+        blocker.minimumX,
+        blocker.maximumX,
+        blocker.minimumZ,
+        blocker.maximumZ,
+      )
+
+      return distance < nearest.distance
+        ? { ...sample, distance }
+        : nearest
+    }, { distance: Infinity })
+
+    assert.ok(
+      nearestSample.distance >= TURN_MINIMUM_CLEARANCE,
+      `${label} turn leaves only ${nearestSample.distance.toFixed(3)}m from the inside corner`,
     )
-
-    return distance < nearest.distance
-      ? { ...sample, distance }
-      : nearest
-  }, { distance: Infinity })
-
-  assert.ok(
-    nearestWallSample.distance >= 0.4,
-    `stair turn leaves only ${nearestWallSample.distance.toFixed(3)}m from the side wall`,
-  )
-})
-
-test('catalogue stop orientation does not aim into a cloister pier', () => {
-  const catalogueStop = EVALUATION_STOPS.find(
-    (stop) => stop.id === 'catalogue',
-  )
-  const position = getCameraPointAt(catalogueStop.progress)
-  const lookAheadPoint = getCameraPointAt(
-    Math.min(
-      1,
-      catalogueStop.progress +
-        CAMERA_LOOK_AHEAD_DISTANCE / PATH_LENGTH,
-    ),
-  )
-  const direction = lookAheadPoint
-    .sub(position)
-    .setY(0)
-    .normalize()
-  const pierIntervals = [
-    [-5.955, -5.575],
-    [-3.425, -3.045],
-    [-2.955, -2.575],
-    [-0.425, -0.045],
-    [0.045, 0.425],
-    [2.575, 2.955],
-    [3.045, 3.425],
-    [5.575, 5.955],
-  ]
-  const aimsIntoPier = Array.from({ length: 121 }, (_, index) =>
-    position.clone().addScaledVector(direction, index * 0.05),
-  ).some(
-    (point) =>
-      point.z >= 7.89 &&
-      point.z <= 8.61 &&
-      pierIntervals.some(
-        ([minimumX, maximumX]) =>
-          point.x >= minimumX && point.x <= maximumX,
-      ),
-  )
-
-  assert.equal(aimsIntoPier, false)
+  }
 })
 
 test('entrance turn orientation follows the connected portals', () => {
-  const entranceProgress = 0.135
+  const samples = samplePath()
+  const entranceProgress = findClosestSample(
+    samples,
+    new Vector3(-18, CAMERA_HEIGHT, 13.1),
+  ).progress
   const entrancePosition = getCameraPointAt(entranceProgress)
   const entranceLookAheadPoint = getCameraPointAt(
     Math.min(
@@ -374,7 +325,10 @@ test('entrance turn orientation follows the connected portals', () => {
     entranceDirection.x *
       ((13 - entrancePosition.z) / entranceDirection.z)
 
-  const turnProgress = 0.165
+  const turnProgress = findClosestSample(
+    samples,
+    new Vector3(-15.1, CAMERA_HEIGHT, 11.5),
+  ).progress
   const turnPosition = getCameraPointAt(turnProgress)
   const turnLookAheadPoint = getCameraPointAt(
     Math.min(
@@ -402,10 +356,22 @@ test('entrance turn orientation follows the connected portals', () => {
 })
 
 test('entrance turn keeps camera clear of the inside support', () => {
+  const samples = samplePath()
+  const startProgress = findClosestSample(
+    samples,
+    new Vector3(-18, CAMERA_HEIGHT, 14.5),
+  ).progress
+  const endProgress = findClosestSample(
+    samples,
+    new Vector3(-13.7, CAMERA_HEIGHT, 12),
+  ).progress
   const turnSamples = Array.from(
     { length: TURN_CLEARANCE_SAMPLE_COUNT + 1 },
     (_, index) => {
-      const progress = 0.135 + (index / TURN_CLEARANCE_SAMPLE_COUNT) * 0.05
+      const progress =
+        startProgress +
+        (index / TURN_CLEARANCE_SAMPLE_COUNT) *
+          (endProgress - startProgress)
       const point = getCameraPointAt(progress)
       const distance = distanceToRectangle(
         point,
@@ -429,8 +395,18 @@ test('entrance turn keeps camera clear of the inside support', () => {
 })
 
 test('entrance turn orientation does not look through the inside support', () => {
+  const samples = samplePath()
+  const startProgress = findClosestSample(
+    samples,
+    new Vector3(-18, CAMERA_HEIGHT, 14.5),
+  ).progress
+  const endProgress = findClosestSample(
+    samples,
+    new Vector3(-13.7, CAMERA_HEIGHT, 12),
+  ).progress
   const blockedSample = Array.from({ length: 81 }, (_, index) => {
-    const progress = 0.135 + (index / 80) * 0.04
+    const progress =
+      startProgress + (index / 80) * (endProgress - startProgress)
     const position = getCameraPointAt(progress)
     const lookAheadProgress = Math.min(
       1,
@@ -463,11 +439,27 @@ test('entrance turn orientation does not look through the inside support', () =>
 })
 
 test('entrance turn smoothed orientation clears the support both ways', () => {
+  const samples = samplePath()
+  const progressRange = {
+    start: findClosestSample(
+      samples,
+      new Vector3(-18, CAMERA_HEIGHT, 14.5),
+    ).progress,
+    end: findClosestSample(
+      samples,
+      new Vector3(-13.7, CAMERA_HEIGHT, 12),
+    ).progress,
+  }
+
   for (const [label, direction] of [
     ['forward', 1],
     ['backward', -1],
   ]) {
-    const blockedProgress = findBlockedSmoothedOrientation(direction)
+    const blockedProgress = findBlockedSmoothedOrientation(
+      direction,
+      progressRange,
+      entranceTurnInsideSupport,
+    )
 
     assert.equal(
       blockedProgress,
@@ -477,13 +469,66 @@ test('entrance turn smoothed orientation clears the support both ways', () => {
   }
 })
 
-test('first project stop remains beyond the provenance gallery', () => {
-  const firstProjectStop = EVALUATION_STOPS.find(
-    (stop) => stop.id === 'project-one',
-  )
-  const position = getCameraPointAt(firstProjectStop.progress)
+test('new turn orientations clear their inside corners both ways', () => {
+  const samples = samplePath()
+  const turns = [
+    {
+      blocker: projectTurnInsideCorner,
+      label: 'project-to-social',
+      progressRange: {
+        start: findClosestSample(
+          samples,
+          new Vector3(2.3, CAMERA_HEIGHT, 12),
+        ).progress,
+        end: findClosestSample(
+          samples,
+          new Vector3(4.2, CAMERA_HEIGHT, 8.3),
+        ).progress,
+      },
+    },
+    {
+      blocker: socialTurnInsideCorner,
+      label: 'social-to-contact',
+      progressRange: {
+        start: findClosestSample(
+          samples,
+          new Vector3(4.2, CAMERA_HEIGHT, 6.2),
+        ).progress,
+        end: findClosestSample(
+          samples,
+          new Vector3(7, CAMERA_HEIGHT, 4),
+        ).progress,
+      },
+    },
+  ]
 
-  assert.ok(position.x >= -7.5 && position.x <= -5.5)
+  for (const turn of turns) {
+    for (const [directionLabel, direction] of [
+      ['forward', 1],
+      ['backward', -1],
+    ]) {
+      const blockedProgress = findBlockedSmoothedOrientation(
+        direction,
+        turn.progressRange,
+        turn.blocker,
+      )
+
+      assert.equal(
+        blockedProgress,
+        null,
+        `${turn.label} ${directionLabel} orientation intersects the inside corner at progress ${blockedProgress?.toFixed(4)}`,
+      )
+    }
+  }
+})
+
+test('project stop sits inside the three-display gallery', () => {
+  const projectStop = EVALUATION_STOPS.find(
+    (stop) => stop.id === 'projects',
+  )
+  const position = getCameraPointAt(projectStop.progress)
+
+  assert.ok(position.x >= -2 && position.x <= 1)
   assert.ok(Math.abs(position.z - 12) <= GATE_CENTER_TOLERANCE)
 })
 
@@ -494,7 +539,7 @@ test('camera remains at human eye height and finishes inside the threshold', () 
   const endpoint = samples.at(-1).point
 
   assert.ok(minimumHeight >= CAMERA_HEIGHT)
-  assert.ok(maximumHeight <= CAMERA_HEIGHT + UPPER_LEVEL)
-  assert.ok(endpoint.x >= -17.7 && endpoint.x <= -16.8)
-  assert.ok(endpoint.z >= 4.8 && endpoint.z <= 9.2)
+  assert.ok(maximumHeight <= CAMERA_HEIGHT)
+  assert.ok(endpoint.x >= 10.7 && endpoint.x <= 11.4)
+  assert.ok(endpoint.z >= 3.75 && endpoint.z <= 4.25)
 })

@@ -1,4 +1,5 @@
 from math import cos, pi, radians, sin
+import os
 from pathlib import Path
 from random import Random
 import sys
@@ -40,31 +41,31 @@ def create_gallery_floor_bay(name, seed, catalog_location):
             x_position = (
                 -GALLERY_WIDTH / 2
                 + slab_width * (column + 0.5)
-                + (0.08 if row % 2 else -0.03)
+                + (0.032 if row % 2 else -0.016)
             )
             y_position = -bay_length / 2 + slab_length * (row + 0.5)
-            x_position += randomizer.uniform(-0.025, 0.025)
-            y_position += randomizer.uniform(-0.025, 0.025)
+            x_position += randomizer.uniform(-0.011, 0.011)
+            y_position += randomizer.uniform(-0.011, 0.011)
 
             base.create_box(
                 f"{name}Slab_{row:02d}_{column:02d}",
                 (
-                    slab_width - randomizer.uniform(0.045, 0.085),
-                    slab_length - randomizer.uniform(0.045, 0.085),
-                    randomizer.uniform(0.075, 0.105),
+                    slab_width - randomizer.uniform(0.026, 0.05),
+                    slab_length - randomizer.uniform(0.026, 0.05),
+                    randomizer.uniform(0.078, 0.096),
                 ),
                 (
                     x_position,
                     y_position,
-                    randomizer.uniform(-0.012, 0.01),
+                    randomizer.uniform(-0.004, 0.004),
                 ),
                 base.MATERIALS["floor"],
                 root,
                 bevel=0.032,
                 rotation=(
-                    randomizer.uniform(-0.005, 0.005),
-                    randomizer.uniform(-0.005, 0.005),
-                    randomizer.uniform(-0.01, 0.01),
+                    randomizer.uniform(-0.002, 0.002),
+                    randomizer.uniform(-0.002, 0.002),
+                    randomizer.uniform(-0.004, 0.004),
                 ),
             )
 
@@ -174,7 +175,7 @@ def create_gallery_wall_bay(
     randomizer = Random(seed)
     bay_length = 2.5
     wall_height = GALLERY_HEIGHT - GALLERY_WIDTH / 2 + 0.12
-    course_count = 5
+    course_count = 7
     course_height = wall_height / course_count
 
     base.create_box(
@@ -189,17 +190,17 @@ def create_gallery_wall_bay(
     for course in range(course_count):
         course_bottom = course * course_height
         course_top = course_bottom + course_height
-        y_cursor = -bay_length / 2 - (0.34 if course % 2 else 0.0)
+        y_cursor = -bay_length / 2 - (0.22 if course % 2 else 0.0)
         block_index = 0
 
         while y_cursor < bay_length / 2:
-            block_length = randomizer.uniform(0.62, 0.9)
+            block_length = randomizer.uniform(0.4, 0.68)
             clipped_start = max(y_cursor, -bay_length / 2)
             clipped_end = min(y_cursor + block_length, bay_length / 2)
             visible_length = clipped_end - clipped_start
 
             if (
-                visible_length > 0.14
+                visible_length > 0.11
                 and not opening_overlaps(
                     clipped_start,
                     clipped_end,
@@ -211,28 +212,28 @@ def create_gallery_wall_bay(
                 base.create_box(
                     f"{name}Block_{course:02d}_{block_index:02d}",
                     (
-                        0.58 + randomizer.uniform(-0.025, 0.025),
-                        visible_length - 0.028,
-                        course_height - randomizer.uniform(0.028, 0.055),
+                        0.58 + randomizer.uniform(-0.018, 0.018),
+                        visible_length - 0.024,
+                        course_height - randomizer.uniform(0.02, 0.04),
                     ),
                     (
                         0.02 + randomizer.uniform(-0.01, 0.012),
                         (clipped_start + clipped_end) / 2,
                         course_bottom
                         + course_height / 2
-                        + randomizer.uniform(-0.01, 0.01),
+                        + randomizer.uniform(-0.006, 0.006),
                     ),
                     base.MATERIALS[
                         "stone_worn"
-                        if (course + block_index) % 7 == 0
+                        if (course + block_index) % 11 == 0
                         else "stone"
                     ],
                     root,
-                    bevel=0.025,
+                    bevel=0.02,
                     rotation=(
-                        randomizer.uniform(-0.006, 0.006),
-                        randomizer.uniform(-0.006, 0.006),
-                        randomizer.uniform(-0.007, 0.007),
+                        randomizer.uniform(-0.003, 0.003),
+                        randomizer.uniform(-0.003, 0.003),
+                        randomizer.uniform(-0.004, 0.004),
                     ),
                 )
 
@@ -927,6 +928,13 @@ def create_gallery_assets():
     create_gallery_lantern((42.0, 6.0, 0.0))
     create_gallery_growth((44.0, 6.0, 0.0))
     create_threshold_plaque((46.0, 6.0, 0.0))
+    base.create_runner_path_asset(
+        "ProvenanceRunnerPath",
+        (48.0, 6.0, 0.0),
+        ((0.0, 0.12), (0.0, 7.5)),
+        1301,
+        width=1.42,
+    )
 
 
 def create_story_cluster(
@@ -1030,6 +1038,20 @@ def create_provenance_assembly():
             (0.0, y_position, 0.0),
         )
 
+    base.instance_asset(
+        "GalleryWallLantern",
+        assembly,
+        "GalleryEntryWallLantern",
+        (2.08, 0.82, 1.55),
+        rotation=(0.0, 0.0, -pi / 2),
+        scale=(0.78, 0.78, 0.78),
+    )
+    base.instance_asset(
+        "ProvenanceRunnerPath",
+        assembly,
+        "ProvenanceRunner",
+        (0.0, 0.0, 0.075),
+    )
     base.instance_asset(
         "GalleryProjectThreshold",
         assembly,
@@ -1327,7 +1349,8 @@ def create_preview_scene():
     cool.location = (0.0, 8.1, 3.0)
     look_at(cool, (0.0, 6.6, 1.5))
 
-    bpy.ops.render.render(write_still=True)
+    if os.environ.get("BLENDER_SKIP_PREVIEW_RENDER") != "1":
+        bpy.ops.render.render(write_still=True)
 
 
 def combined_bounds(root):

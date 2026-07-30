@@ -4,9 +4,12 @@ export function PrototypeInterface({
   activeStopIndex,
   progress,
   reducedMotionEnabled,
+  interactionLocked,
+  projectIndexOpen,
   onReducedMotionChange,
   onMoveBackward,
   onMoveForward,
+  onProjectIndexToggle,
 }) {
   const activeStop =
     activeStopIndex === null
@@ -40,6 +43,7 @@ export function PrototypeInterface({
               type="button"
               className="direction-button"
               onClick={onMoveBackward}
+              disabled={interactionLocked}
               aria-label="Move backward"
               title="Move backward"
             >
@@ -49,6 +53,7 @@ export function PrototypeInterface({
               type="button"
               className="direction-button"
               onClick={onMoveForward}
+              disabled={interactionLocked}
               aria-label="Move forward"
               title="Move forward"
             >
@@ -58,11 +63,25 @@ export function PrototypeInterface({
 
           <span className="dock-divider" aria-hidden="true" />
 
+          <button
+            type="button"
+            className="project-index-button"
+            onClick={onProjectIndexToggle}
+            disabled={interactionLocked}
+            aria-controls="project-index-panel"
+            aria-expanded={projectIndexOpen}
+          >
+            Projects
+          </button>
+
+          <span className="dock-divider" aria-hidden="true" />
+
           <label className="motion-toggle">
             <input
               type="checkbox"
               aria-label="Reduced motion"
               checked={reducedMotionEnabled}
+              disabled={interactionLocked}
               onChange={(event) =>
                 onReducedMotionChange(event.target.checked)
               }
