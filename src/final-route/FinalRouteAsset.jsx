@@ -8,8 +8,9 @@ import {
   SRGBColorSpace,
 } from 'three'
 import {
-  contactContent,
-  projects,
+  audioStories,
+  books,
+  socialContent,
   socialLinks,
 } from '../content/portfolioContent'
 import {
@@ -26,6 +27,11 @@ const ASSEMBLY_NAME = 'FinalRouteAssetLibraryAssembly'
 const RUNNER_NAME = 'FinalRouteRunner'
 const PROJECT_SURFACE_PATTERN = /^ProjectInteractionSurface_(\d+)$/
 const SOCIAL_SURFACE_PATTERN = /^SocialInteractionSurface_(\d+)$/
+const BOOK_SURFACE_DIMENSIONS = Object.freeze([
+  Object.freeze([800, 1000]),
+  Object.freeze([866, 1000]),
+  Object.freeze([876, 1000]),
+])
 
 function collectSourceMaterials(scene) {
   const sourceMaterials = new Map()
@@ -157,99 +163,8 @@ function wrapText(
   return y + visibleLines.length * lineHeight
 }
 
-function drawProjectSurface(context, project, index, width, height) {
-  context.fillStyle = '#c7b588'
-  context.fillRect(0, 0, width, height)
-  context.strokeStyle = '#392b20'
-  context.lineWidth = 22
-  context.strokeRect(24, 24, width - 48, height - 48)
-  context.strokeStyle = '#80623a'
-  context.lineWidth = 5
-  context.strokeRect(56, 56, width - 112, height - 112)
-
-  context.fillStyle = '#4a3828'
-  context.font = '700 28px Georgia'
-  context.fillText(
-    String(index + 1).padStart(2, '0'),
-    86,
-    112,
-  )
-  context.font = '600 20px Arial'
-  context.fillText(project.category.toUpperCase(), 150, 110)
-
-  const thumbnailX = 86
-  const thumbnailY = 150
-  const thumbnailWidth = width - 172
-  const thumbnailHeight = 330
-  const gradient = context.createLinearGradient(
-    thumbnailX,
-    thumbnailY,
-    thumbnailX + thumbnailWidth,
-    thumbnailY + thumbnailHeight,
-  )
-  gradient.addColorStop(0, '#3c3830')
-  gradient.addColorStop(1, '#171b1c')
-  context.fillStyle = gradient
-  context.fillRect(
-    thumbnailX,
-    thumbnailY,
-    thumbnailWidth,
-    thumbnailHeight,
-  )
-  context.strokeStyle = '#8f7347'
-  context.lineWidth = 3
-  context.strokeRect(
-    thumbnailX,
-    thumbnailY,
-    thumbnailWidth,
-    thumbnailHeight,
-  )
-  context.strokeStyle = 'rgba(199, 181, 136, 0.26)'
-  context.beginPath()
-  context.moveTo(thumbnailX, thumbnailY)
-  context.lineTo(
-    thumbnailX + thumbnailWidth,
-    thumbnailY + thumbnailHeight,
-  )
-  context.moveTo(thumbnailX + thumbnailWidth, thumbnailY)
-  context.lineTo(thumbnailX, thumbnailY + thumbnailHeight)
-  context.stroke()
-
-  context.fillStyle = '#2c2119'
-  context.font = '700 52px Georgia'
-  let textY = wrapText(
-    context,
-    project.title,
-    86,
-    555,
-    width - 172,
-    58,
-    2,
-  )
-  context.font = '400 25px Arial'
-  wrapText(
-    context,
-    project.shortSummary,
-    86,
-    textY + 22,
-    width - 172,
-    34,
-    4,
-  )
-
-  context.strokeStyle = '#765c38'
-  context.lineWidth = 3
-  context.beginPath()
-  context.moveTo(86, height - 124)
-  context.lineTo(width - 86, height - 124)
-  context.stroke()
-  context.fillStyle = '#3d2c20'
-  context.font = '700 24px Arial'
-  context.fillText('OPEN PROJECT ARCHIVE', 86, height - 78)
-}
-
-function drawSocialSurface(context, socialLink, index, width, height) {
-  context.fillStyle = '#b7a171'
+function drawInformationFrame(context, width, height, color = '#b7a171') {
+  context.fillStyle = color
   context.fillRect(0, 0, width, height)
   context.strokeStyle = '#33261c'
   context.lineWidth = 18
@@ -257,71 +172,142 @@ function drawSocialSurface(context, socialLink, index, width, height) {
   context.strokeStyle = '#806139'
   context.lineWidth = 4
   context.strokeRect(48, 48, width - 96, height - 96)
+}
+
+function drawAudioSurface(context, story, index, width, height) {
+  drawInformationFrame(context, width, height)
 
   context.fillStyle = '#3a2b20'
-  context.font = '700 34px Georgia'
+  context.font = '700 26px Arial'
   context.fillText(
-    `CORRESPONDENCE ${String(index + 1).padStart(2, '0')}`,
+    `HISTOIRE AUDIO ${String(index + 1).padStart(2, '0')}`,
     70,
     120,
   )
   context.font = '700 42px Georgia'
-  wrapText(
+  const textY = wrapText(
     context,
-    socialLink.label,
+    story.title,
     70,
-    235,
+    225,
     width - 140,
     50,
-    2,
+    3,
+  )
+  context.font = '400 23px Arial'
+  wrapText(
+    context,
+    story.summary,
+    70,
+    textY + 38,
+    width - 140,
+    32,
+    5,
   )
   context.font = '600 24px Arial'
   context.fillText(
-    socialLink.href ? 'OPEN EXTERNAL LINK' : 'AWAITING CONFIGURATION',
+    'OUVRIR L’ARCHIVE AUDIO',
     70,
     height - 92,
   )
 }
 
-function drawContactSurface(context, width, height) {
-  context.fillStyle = '#c2af80'
+function drawBookSurface(
+  context,
+  sourceImage,
+  width,
+  height,
+) {
+  const frameInset = Math.round(width * 0.035)
+  const imageAreaWidth = width - frameInset * 2
+  const imageAreaHeight = height - frameInset * 2
+  const imageWidth = sourceImage.naturalWidth ?? sourceImage.width
+  const imageHeight = sourceImage.naturalHeight ?? sourceImage.height
+  const imageRatio = imageWidth / imageHeight
+  const areaRatio = imageAreaWidth / imageAreaHeight
+  const drawWidth =
+    imageRatio > areaRatio
+      ? imageAreaWidth
+      : imageAreaHeight * imageRatio
+  const drawHeight =
+    imageRatio > areaRatio
+      ? imageAreaWidth / imageRatio
+      : imageAreaHeight
+  const drawX = (width - drawWidth) / 2
+  const drawY = (height - drawHeight) / 2
+
+  context.fillStyle = '#17130f'
   context.fillRect(0, 0, width, height)
-  context.strokeStyle = '#34271d'
-  context.lineWidth = 20
-  context.strokeRect(22, 22, width - 44, height - 44)
-  context.strokeStyle = '#80613a'
-  context.lineWidth = 4
-  context.strokeRect(54, 54, width - 108, height - 108)
+  context.shadowColor = 'rgb(0 0 0 / 68%)'
+  context.shadowBlur = Math.round(width * 0.035)
+  context.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight)
+  context.shadowBlur = 0
+  context.strokeStyle = '#765838'
+  context.lineWidth = Math.max(3, Math.round(width * 0.006))
+  context.strokeRect(
+    frameInset,
+    frameInset,
+    imageAreaWidth,
+    imageAreaHeight,
+  )
+}
+
+function drawAudioIndexSurface(context, width, height) {
+  drawInformationFrame(context, width, height, '#a99770')
+
+  context.fillStyle = '#3a2b20'
+  context.font = '700 26px Arial'
+  context.fillText('GALERIE D’ÉCOUTE', 70, 120)
+  context.font = '700 44px Georgia'
+  const textY = wrapText(
+    context,
+    'HISTOIRES AUDIOS',
+    70,
+    235,
+    width - 140,
+    52,
+    2,
+  )
+  context.font = '400 24px Arial'
+  wrapText(
+    context,
+    `${audioStories.length} enregistrements fournis`,
+    70,
+    textY + 42,
+    width - 140,
+    34,
+    4,
+  )
+}
+
+function drawSocialSurface(context, width, height) {
+  drawInformationFrame(context, width, height, '#c2af80')
 
   context.fillStyle = '#3a2a20'
-  context.font = '700 30px Arial'
-  context.fillText('CONTACT', 78, 126)
-  context.font = '700 56px Georgia'
-  let textY = wrapText(
+  context.font = '700 28px Arial'
+  context.fillText('CORRESPONDANCES', 78, 126)
+  context.font = '700 54px Georgia'
+  const textY = wrapText(
     context,
-    contactContent.title,
+    socialContent.title,
     78,
     230,
     width - 156,
-    64,
+    62,
     2,
   )
-  context.font = '400 27px Arial'
-  textY = wrapText(
+  context.font = '400 26px Arial'
+  wrapText(
     context,
-    contactContent.summary,
+    socialLinks.map((socialLink) => socialLink.label).join(' · '),
     78,
-    textY + 35,
+    textY + 45,
     width - 156,
     38,
-    4,
+    5,
   )
   context.font = '700 24px Arial'
-  context.fillText(
-    contactContent.action.label.toUpperCase(),
-    78,
-    Math.max(textY + 80, height - 112),
-  )
+  context.fillText('OUVRIR LES LIENS', 78, height - 112)
 }
 
 function createSurfaceMaterial(drawSurface, dimensions = [768, 1024]) {
@@ -351,61 +337,80 @@ function createSurfaceMaterial(drawSurface, dimensions = [768, 1024]) {
   return material
 }
 
-function createInformationMaterials() {
-  const projectMaterials = projects.map((project, index) =>
-    createSurfaceMaterial((context, width, height) =>
-      drawProjectSurface(
+function createBookCoverMaterial(sourceTexture, index) {
+  const material = createSurfaceMaterial(
+    (context, width, height) =>
+      drawBookSurface(
         context,
-        project,
-        index,
+        sourceTexture.image,
         width,
         height,
       ),
-    ),
+    BOOK_SURFACE_DIMENSIONS[index],
   )
-  const socialMaterials = socialLinks.map((socialLink, index) =>
+  material.name = `BookCoverSurface_${String(index + 1).padStart(2, '0')}`
+  return material
+}
+
+function createInformationMaterials(bookCoverTextures) {
+  const bookMaterials = bookCoverTextures.map(createBookCoverMaterial)
+  const audioMaterials = audioStories.map((story, index) =>
     createSurfaceMaterial(
       (context, width, height) =>
-        drawSocialSurface(
-          context,
-          socialLink,
-          index,
-          width,
-          height,
-        ),
+        drawAudioSurface(context, story, index, width, height),
       [640, 760],
     ),
   )
-  const contactMaterial = createSurfaceMaterial(
-    drawContactSurface,
+  audioMaterials.push(
+    createSurfaceMaterial(drawAudioIndexSurface, [640, 760]),
+  )
+  const socialMaterial = createSurfaceMaterial(
+    drawSocialSurface,
     [720, 900],
   )
 
   return {
-    contactMaterial,
-    projectMaterials,
-    socialMaterials,
+    audioMaterials,
+    bookMaterials,
+    socialMaterial,
   }
 }
 
-function getProjectId(objectName) {
+function getBookId(objectName) {
   const match = PROJECT_SURFACE_PATTERN.exec(objectName)
 
   if (!match) {
     return null
   }
 
-  return projects[Number(match[1]) - 1]?.id ?? null
+  return books[Number(match[1]) - 1]?.id ?? null
+}
+
+function getAudioStoryId(objectName) {
+  const match = SOCIAL_SURFACE_PATTERN.exec(objectName)
+
+  if (!match) {
+    return null
+  }
+
+  return audioStories[Number(match[1]) - 1]?.id ?? null
 }
 
 function FinalRouteModel({
-  onProjectSelect,
-  projectInteractionEnabled = false,
+  audioInteractionEnabled = false,
+  bookInteractionEnabled = false,
+  onAudioStorySelect,
+  onBookSelect,
+  onSocialOpen,
+  socialInteractionEnabled = false,
   ...props
 }) {
   const { scene } = useGLTF(MODEL_URL)
   const { scene: entranceScene } = useGLTF(ENTRANCE_MODEL_URL)
   const runnerTexture = useTexture(RUNNER_TEXTURE_URL)
+  const bookCoverTextures = useTexture(
+    books.map((book) => book.cover.src),
+  )
   const materialResources = useMemo(
     () => createEntranceMaterialResources(),
     [],
@@ -427,8 +432,8 @@ function FinalRouteModel({
     [runnerTexture, runnerUvChannel],
   )
   const informationMaterials = useMemo(
-    () => createInformationMaterials(),
-    [],
+    () => createInformationMaterials(bookCoverTextures),
+    [bookCoverTextures],
   )
   const assembly = useMemo(() => {
     const sourceAssembly = scene.getObjectByName(ASSEMBLY_NAME)
@@ -457,25 +462,28 @@ function FinalRouteModel({
       const projectMatch = PROJECT_SURFACE_PATTERN.exec(object.name)
       if (projectMatch) {
         object.material =
-          informationMaterials.projectMaterials[
+          informationMaterials.bookMaterials[
             Number(projectMatch[1]) - 1
           ]
-        object.userData.projectId =
-          projects[Number(projectMatch[1]) - 1]?.id
+        object.userData.bookId =
+          books[Number(projectMatch[1]) - 1]?.id
         return
       }
 
       const socialMatch = SOCIAL_SURFACE_PATTERN.exec(object.name)
       if (socialMatch) {
         object.material =
-          informationMaterials.socialMaterials[
+          informationMaterials.audioMaterials[
             Number(socialMatch[1]) - 1
           ]
+        object.userData.audioStoryId =
+          audioStories[Number(socialMatch[1]) - 1]?.id
         return
       }
 
       if (object.name === 'ContactInteractionSurface') {
-        object.material = informationMaterials.contactMaterial
+        object.material = informationMaterials.socialMaterial
+        object.userData.contentType = 'social'
         return
       }
 
@@ -511,37 +519,67 @@ function FinalRouteModel({
 
   const handleClick = useCallback(
     (event) => {
-      if (!projectInteractionEnabled) {
+      const objectName = event.object.name
+      const bookId = getBookId(objectName)
+      const audioStoryId = getAudioStoryId(objectName)
+
+      if (bookInteractionEnabled && bookId) {
+        event.stopPropagation()
+        onBookSelect(bookId)
         return
       }
 
-      const projectId = getProjectId(event.object.name)
-
-      if (!projectId) {
+      if (audioInteractionEnabled && audioStoryId) {
+        event.stopPropagation()
+        onAudioStorySelect(audioStoryId)
         return
       }
 
-      event.stopPropagation()
-      onProjectSelect(projectId)
+      if (
+        socialInteractionEnabled &&
+        objectName === 'ContactInteractionSurface'
+      ) {
+        event.stopPropagation()
+        onSocialOpen(null)
+      }
     },
-    [onProjectSelect, projectInteractionEnabled],
+    [
+      audioInteractionEnabled,
+      bookInteractionEnabled,
+      onAudioStorySelect,
+      onBookSelect,
+      onSocialOpen,
+      socialInteractionEnabled,
+    ],
   )
 
   const handlePointerOver = useCallback(
     (event) => {
-      if (
-        projectInteractionEnabled &&
-        getProjectId(event.object.name)
-      ) {
+      const objectName = event.object.name
+      const interactive =
+        (bookInteractionEnabled && getBookId(objectName)) ||
+        (audioInteractionEnabled && getAudioStoryId(objectName)) ||
+        (socialInteractionEnabled &&
+          objectName === 'ContactInteractionSurface')
+
+      if (interactive) {
         event.stopPropagation()
         document.body.style.cursor = 'pointer'
       }
     },
-    [projectInteractionEnabled],
+    [
+      audioInteractionEnabled,
+      bookInteractionEnabled,
+      socialInteractionEnabled,
+    ],
   )
 
   const handlePointerOut = useCallback((event) => {
-    if (getProjectId(event.object.name)) {
+    if (
+      getBookId(event.object.name) ||
+      getAudioStoryId(event.object.name) ||
+      event.object.name === 'ContactInteractionSurface'
+    ) {
       document.body.style.cursor = ''
     }
   }, [])
@@ -575,3 +613,4 @@ export function FinalRouteAsset(props) {
 useGLTF.preload(MODEL_URL)
 useGLTF.preload(ENTRANCE_MODEL_URL)
 useTexture.preload(RUNNER_TEXTURE_URL)
+books.forEach((book) => useTexture.preload(book.cover.src))

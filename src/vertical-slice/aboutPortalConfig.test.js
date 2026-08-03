@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { Vector3 } from 'three'
 import {
   getCameraPointAt,
@@ -16,6 +18,9 @@ import {
   ABOUT_PORTAL_FRAME_OUTER_WIDTH,
   ABOUT_PORTAL_POSITION,
 } from './aboutPortalConfig.js'
+
+const root = fileURLToPath(new URL('../../', import.meta.url))
+const portalPath = `${root}src/vertical-slice/AboutPortal.jsx`
 
 function distanceToPortalBounds(point) {
   const [centerX, baseY, centerZ] = ABOUT_PORTAL_POSITION
@@ -67,4 +72,16 @@ test('About me focus lock preserves the exact route position', () => {
   assert.equal(movement.progress, exactProgress)
   assert.equal(movement.lockedProgress, null)
   assert.equal(movement.travelLocked, false)
+})
+
+test('About portal title is rendered as portal-anchored 3D material', () => {
+  const portalSource = readFileSync(portalPath, 'utf8')
+
+  assert.match(portalSource, /CanvasTexture/)
+  assert.match(portalSource, /function PortalTitle/)
+  assert.match(portalSource, /name="about-portal-title"/)
+  assert.doesNotMatch(
+    portalSource,
+    /<span>A PROPOS DE MOI<\/span>/,
+  )
 })

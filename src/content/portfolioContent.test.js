@@ -1,59 +1,80 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import {
   aboutContent,
-  contactContent,
-  projects,
+  audioStories,
+  books,
+  socialContent,
   socialLinks,
 } from './portfolioContent.js'
 
-const requiredProjectFields = [
-  'id',
-  'title',
-  'category',
-  'thumbnail',
-  'shortSummary',
-  'context',
-  'role',
-  'objective',
-  'process',
-  'decisions',
-  'result',
-  'imageGallery',
-  'video',
-  'outcome',
-]
+test('about content uses the supplied portrait and biography', () => {
+  assert.equal(aboutContent.title, 'A PROPOS DE MOI')
+  assert.equal(aboutContent.paragraphs.length, 2)
+  assert.match(aboutContent.paragraphs[0], /liberté/)
+  assert.match(aboutContent.paragraphs[1], /éducateur spécialisé/)
+  assert.ok(aboutContent.portrait.alt)
+  assert.equal(
+    existsSync(fileURLToPath(aboutContent.portrait.src)),
+    true,
+  )
+})
 
-test('portfolio content exposes exactly three neutral project records', () => {
+test('book archive exposes all supplied covers, texts and teasers', () => {
   assert.deepEqual(
-    projects.map((project) => project.id),
-    ['project-01', 'project-02', 'project-03'],
+    books.map((book) => book.id),
+    [
+      'shadow-of-jack-volume-1',
+      'shadow-of-jack-volume-2',
+      'the-thinker',
+    ],
   )
 
-  for (const project of projects) {
-    assert.deepEqual(
-      Object.keys(project),
-      requiredProjectFields,
+  for (const book of books) {
+    assert.ok(book.title)
+    assert.ok(book.author)
+    assert.ok(book.category)
+    assert.ok(book.summary)
+    assert.ok(book.backCover.length)
+    assert.ok(book.cover.alt)
+    assert.equal(existsSync(fileURLToPath(book.cover.src)), true)
+    assert.ok(book.sourceFiles.some((path) => path.endsWith('infos.rtf')))
+  }
+
+  assert.ok(books[0].teaser?.sourceUrl)
+  assert.ok(books[1].teaser?.sourceUrl)
+  assert.equal(books[2].teaser, null)
+})
+
+test('audio archive exposes both supplied stories and playable URLs', () => {
+  assert.deepEqual(
+    audioStories.map((story) => story.id),
+    ['between-four-mirrors', 'coffee-time'],
+  )
+
+  for (const story of audioStories) {
+    assert.ok(story.title)
+    assert.ok(story.infoTitle)
+    assert.ok(story.paragraphs.length)
+    assert.match(story.media.sourceUrl, /^https:\/\/www\.youtube\.com\//)
+    assert.ok(
+      story.sourceFiles.some((path) => path.endsWith('infos.rtf')),
     )
-    assert.equal(project.contentStatus, undefined)
-    assert.equal(project.thumbnail.src, null)
-    assert.equal(project.video, null)
   }
 })
 
-test('social content exposes exactly three unconfigured links', () => {
+test('social archive exposes the four supplied links', () => {
+  assert.equal(socialContent.title, 'RESEAUX SOCIAUX')
   assert.deepEqual(
     socialLinks.map((socialLink) => socialLink.id),
-    ['social-01', 'social-02', 'social-03'],
+    ['instagram', 'facebook', 'youtube', 'author-page'],
   )
 
   for (const socialLink of socialLinks) {
-    assert.equal(socialLink.href, null)
+    assert.match(socialLink.href, /^https:\/\//)
+    assert.ok(socialLink.description)
+    assert.ok(socialLink.sourceFile.endsWith('.webloc'))
   }
-})
-
-test('personal and contact records remain neutral placeholders', () => {
-  assert.equal(aboutContent.contentStatus, 'placeholder')
-  assert.equal(contactContent.contentStatus, 'placeholder')
-  assert.equal(contactContent.action.href, null)
 })

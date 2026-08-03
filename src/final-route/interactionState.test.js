@@ -1,35 +1,40 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PROJECT_GALLERY_PROGRESS_RANGE } from '../prototype/cameraPath.js'
+import {
+  AUDIO_STORY_PROGRESS_RANGE,
+  PROJECT_GALLERY_PROGRESS_RANGE,
+  SOCIAL_NETWORK_PROGRESS_RANGE,
+} from '../prototype/cameraPath.js'
 import {
   getContextualPanelId,
   getReturnFocusTarget,
+  isAudioSurfaceInteractionEnabled,
   isProjectSurfaceInteractionEnabled,
-  shouldOpenProjectIndex,
+  isSocialSurfaceInteractionEnabled,
 } from './interactionState.js'
 
-test('project index visibility always matches its expanded control', () => {
-  assert.equal(getContextualPanelId(null, true, false), 'projects')
-  assert.equal(getContextualPanelId('about', true, false), 'projects')
-  assert.equal(getContextualPanelId('projects', false, false), null)
-  assert.equal(getContextualPanelId('about', false, false), 'about')
-  assert.equal(getContextualPanelId('social', false, false), 'social')
-  assert.equal(getContextualPanelId('contact', false, false), 'contact')
+test('contextual panels follow the approved route order', () => {
+  assert.equal(getContextualPanelId(null, true, false), 'archive')
+  assert.equal(getContextualPanelId('about', true, false), 'archive')
+  assert.equal(getContextualPanelId('about', false, false), null)
+  assert.equal(getContextualPanelId('projects', false, false), 'books')
+  assert.equal(getContextualPanelId('social', false, false), 'audio')
+  assert.equal(getContextualPanelId('contact', false, false), 'social')
   assert.equal(getContextualPanelId('contact', true, true), null)
 })
 
 test('focus restoration rejects a disconnected trigger', () => {
   const disconnectedTrigger = { isConnected: false }
-  const liveProjectTrigger = { isConnected: true }
+  const liveContentTrigger = { isConnected: true }
   const movementTrigger = { isConnected: true }
 
   assert.equal(
     getReturnFocusTarget(
       disconnectedTrigger,
-      liveProjectTrigger,
+      liveContentTrigger,
       movementTrigger,
     ),
-    liveProjectTrigger,
+    liveContentTrigger,
   )
   assert.equal(
     getReturnFocusTarget(null, null, movementTrigger),
@@ -37,28 +42,23 @@ test('focus restoration rejects a disconnected trigger', () => {
   )
 })
 
-test('3D project surfaces activate throughout the physical gallery', () => {
-  const galleryMiddle =
+test('3D content surfaces activate only in their route areas', () => {
+  const bookMiddle =
     (PROJECT_GALLERY_PROGRESS_RANGE.start +
       PROJECT_GALLERY_PROGRESS_RANGE.end) /
     2
+  const audioMiddle =
+    (AUDIO_STORY_PROGRESS_RANGE.start +
+      AUDIO_STORY_PROGRESS_RANGE.end) /
+    2
+  const socialMiddle =
+    (SOCIAL_NETWORK_PROGRESS_RANGE.start +
+      SOCIAL_NETWORK_PROGRESS_RANGE.end) /
+    2
 
-  assert.equal(
-    isProjectSurfaceInteractionEnabled(
-      PROJECT_GALLERY_PROGRESS_RANGE.start,
-    ),
-    true,
-  )
-  assert.equal(
-    isProjectSurfaceInteractionEnabled(galleryMiddle),
-    true,
-  )
-  assert.equal(
-    isProjectSurfaceInteractionEnabled(
-      PROJECT_GALLERY_PROGRESS_RANGE.end,
-    ),
-    true,
-  )
+  assert.equal(isProjectSurfaceInteractionEnabled(bookMiddle), true)
+  assert.equal(isAudioSurfaceInteractionEnabled(audioMiddle), true)
+  assert.equal(isSocialSurfaceInteractionEnabled(socialMiddle), true)
   assert.equal(
     isProjectSurfaceInteractionEnabled(
       PROJECT_GALLERY_PROGRESS_RANGE.start - 0.001,
@@ -66,16 +66,16 @@ test('3D project surfaces activate throughout the physical gallery', () => {
     false,
   )
   assert.equal(
-    isProjectSurfaceInteractionEnabled(
-      PROJECT_GALLERY_PROGRESS_RANGE.end + 0.001,
+    isAudioSurfaceInteractionEnabled(
+      AUDIO_STORY_PROGRESS_RANGE.end + 0.001,
     ),
     false,
   )
-  assert.equal(isProjectSurfaceInteractionEnabled(null), false)
-})
-
-test('reduced motion exposes the project index at its route stop', () => {
-  assert.equal(shouldOpenProjectIndex(true, 'projects'), true)
-  assert.equal(shouldOpenProjectIndex(false, 'projects'), false)
-  assert.equal(shouldOpenProjectIndex(true, 'about'), false)
+  assert.equal(
+    isSocialSurfaceInteractionEnabled(
+      SOCIAL_NETWORK_PROGRESS_RANGE.start - 0.001,
+    ),
+    false,
+  )
+  assert.equal(isSocialSurfaceInteractionEnabled(null), false)
 })

@@ -1,45 +1,60 @@
+import {
+  AUDIO_STORY_PROGRESS_RANGE,
+  PROJECT_GALLERY_PROGRESS_RANGE,
+  SOCIAL_NETWORK_PROGRESS_RANGE,
+} from '../prototype/cameraPath.js'
+
+const STOP_PANEL_IDS = Object.freeze({
+  contact: 'social',
+  projects: 'books',
+  social: 'audio',
+})
+
 export function getContextualPanelId(
   activeStopId,
-  projectIndexOpen,
+  archiveIndexOpen,
   interactionLocked,
 ) {
   if (interactionLocked) {
     return null
   }
 
-  if (projectIndexOpen) {
-    return 'projects'
+  if (archiveIndexOpen) {
+    return 'archive'
   }
 
-  if (['about', 'social', 'contact'].includes(activeStopId)) {
-    return activeStopId
-  }
-
-  return null
+  return STOP_PANEL_IDS[activeStopId] ?? null
 }
 
 export function getReturnFocusTarget(
   storedTrigger,
-  liveProjectTrigger,
+  liveContentTrigger,
   movementTrigger,
 ) {
-  return [storedTrigger, liveProjectTrigger, movementTrigger].find(
+  return [storedTrigger, liveContentTrigger, movementTrigger].find(
     (target) => target?.isConnected,
   )
 }
 
-export function isProjectSurfaceInteractionEnabled(progress) {
+function isProgressInsideRange(progress, range) {
   return (
     Number.isFinite(progress) &&
-    progress >= PROJECT_GALLERY_PROGRESS_RANGE.start &&
-    progress <= PROJECT_GALLERY_PROGRESS_RANGE.end
+    progress >= range.start &&
+    progress <= range.end
   )
 }
 
-export function shouldOpenProjectIndex(
-  reducedMotionEnabled,
-  activeStopId,
-) {
-  return reducedMotionEnabled && activeStopId === 'projects'
+export function isProjectSurfaceInteractionEnabled(progress) {
+  return isProgressInsideRange(
+    progress,
+    PROJECT_GALLERY_PROGRESS_RANGE,
+  )
 }
-import { PROJECT_GALLERY_PROGRESS_RANGE } from '../prototype/cameraPath.js'
+
+export function isAudioSurfaceInteractionEnabled(progress) {
+  return isProgressInsideRange(progress, AUDIO_STORY_PROGRESS_RANGE)
+}
+
+export function isSocialSurfaceInteractionEnabled(progress) {
+  return isProgressInsideRange(progress, SOCIAL_NETWORK_PROGRESS_RANGE)
+}

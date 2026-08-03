@@ -99,16 +99,24 @@ function FinalRouteLighting() {
 }
 
 export function FinalRouteEnvironment({
-  onProjectSelect,
-  projectInteractionEnabled,
+  audioInteractionEnabled,
+  bookInteractionEnabled,
+  onAudioStorySelect,
+  onBookSelect,
+  onSocialOpen,
+  socialInteractionEnabled,
 }) {
   return (
     <group name="final-approved-route">
       <FinalRouteAsset
-        onProjectSelect={onProjectSelect}
-        projectInteractionEnabled={projectInteractionEnabled}
+        audioInteractionEnabled={audioInteractionEnabled}
+        bookInteractionEnabled={bookInteractionEnabled}
+        onAudioStorySelect={onAudioStorySelect}
+        onBookSelect={onBookSelect}
+        onSocialOpen={onSocialOpen}
         position={FINAL_ROUTE_POSITION}
         rotation={FINAL_ROUTE_ROTATION}
+        socialInteractionEnabled={socialInteractionEnabled}
       />
       <FinalRouteLighting />
     </group>

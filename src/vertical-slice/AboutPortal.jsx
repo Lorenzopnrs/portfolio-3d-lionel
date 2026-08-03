@@ -7,9 +7,12 @@ import {
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import {
+  CanvasTexture,
   DoubleSide,
   ExtrudeGeometry,
+  LinearFilter,
   Path,
+  SRGBColorSpace,
   Shape,
   ShapeGeometry,
 } from 'three'
@@ -315,6 +318,62 @@ function createArchHole(width, springHeight, bottomInset) {
   return hole
 }
 
+function createPortalTitleTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1024
+  canvas.height = 256
+  const context = canvas.getContext('2d')
+
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.font = '600 88px Georgia'
+  context.lineJoin = 'round'
+  context.strokeStyle = 'rgb(31 43 83 / 92%)'
+  context.lineWidth = 8
+  context.shadowColor = 'rgb(135 164 235 / 78%)'
+  context.shadowBlur = 26
+  context.strokeText('A PROPOS DE MOI', 512, 128)
+  context.fillStyle = '#eef3ff'
+  context.fillText('A PROPOS DE MOI', 512, 128)
+
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  texture.minFilter = LinearFilter
+  texture.magFilter = LinearFilter
+  texture.anisotropy = 8
+  texture.needsUpdate = true
+  return texture
+}
+
+function PortalTitle({ onActivate, onPointerOut, onPointerOver }) {
+  const titleTexture = useMemo(() => createPortalTitleTexture(), [])
+
+  useEffect(() => () => titleTexture.dispose(), [titleTexture])
+
+  return (
+    <mesh
+      name="about-portal-title"
+      position={[0, 2.05, 0.075]}
+      onClick={(event) => {
+        event.stopPropagation()
+        onActivate(null)
+      }}
+      onPointerOut={onPointerOut}
+      onPointerOver={onPointerOver}
+    >
+      <planeGeometry args={[2.15, 0.54]} />
+      <meshBasicMaterial
+        depthWrite={false}
+        map={titleTexture}
+        side={DoubleSide}
+        toneMapped={false}
+        transparent
+      />
+    </mesh>
+  )
+}
+
 function PortalSurface({
   geometry,
   onActivate,
@@ -459,6 +518,12 @@ export function AboutPortal({
         position={[0, 1.72, 0.42]}
       />
 
+      <PortalTitle
+        onActivate={onActivate}
+        onPointerOut={handlePointerOut}
+        onPointerOver={handlePointerOver}
+      />
+
       <Html
         center
         distanceFactor={5.4}
@@ -471,7 +536,7 @@ export function AboutPortal({
             type="button"
             className="about-portal-trigger"
             data-about-trigger
-            aria-label="Open About me"
+            aria-label="Ouvrir A PROPOS DE MOI"
             onClick={(event) => {
               event.stopPropagation()
               onActivate(event.currentTarget)
@@ -486,7 +551,7 @@ export function AboutPortal({
               onActivate(event.currentTarget)
             }}
           >
-            <span>About me</span>
+            <span className="sr-only">Ouvrir la présentation</span>
           </button>
         </div>
       </Html>

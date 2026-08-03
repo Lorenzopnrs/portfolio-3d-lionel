@@ -5,11 +5,11 @@ export function PrototypeInterface({
   progress,
   reducedMotionEnabled,
   interactionLocked,
-  projectIndexOpen,
+  archiveIndexOpen,
   onReducedMotionChange,
   onMoveBackward,
   onMoveForward,
-  onProjectIndexToggle,
+  onArchiveIndexToggle,
 }) {
   const activeStop =
     activeStopIndex === null
@@ -66,12 +66,12 @@ export function PrototypeInterface({
           <button
             type="button"
             className="project-index-button"
-            onClick={onProjectIndexToggle}
+            onClick={onArchiveIndexToggle}
             disabled={interactionLocked}
-            aria-controls="project-index-panel"
-            aria-expanded={projectIndexOpen}
+            aria-controls="archive-index-panel"
+            aria-expanded={archiveIndexOpen}
           >
-            Projects
+            Archives
           </button>
 
           <span className="dock-divider" aria-hidden="true" />

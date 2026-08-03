@@ -423,10 +423,10 @@ function findGeometryViolation(primitives, point) {
   return null
 }
 
-test('approved route exposes exactly five ordered evaluation stops', () => {
+test('approved route exposes four stops without a duplicate About stop', () => {
   assert.deepEqual(
     EVALUATION_STOPS.map((stop) => stop.id),
-    ['entrance', 'about', 'projects', 'social', 'contact'],
+    ['entrance', 'projects', 'social', 'contact'],
   )
 })
 

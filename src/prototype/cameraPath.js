@@ -84,27 +84,22 @@ export const PATH_LENGTH = cameraPath.getLength()
 const stopTargets = [
   {
     id: 'entrance',
-    label: 'Welcome entrance',
+    label: 'Entrée',
     point: cameraPoint(-18, 25),
   },
   {
-    id: 'about',
-    label: 'About Me gallery',
-    point: cameraPoint(-11.4, 12),
-  },
-  {
     id: 'projects',
-    label: 'Project gallery',
+    label: 'LIVRES',
     point: cameraPoint(-0.6, 12),
   },
   {
     id: 'social',
-    label: 'Social Networks',
+    label: 'HISTOIRES AUDIOS',
     point: cameraPoint(4.2, 5.5),
   },
   {
     id: 'contact',
-    label: 'Contact / Unfinished Wing',
+    label: 'RESEAUX SOCIAUX',
     point: cameraPoint(9.4, 4),
   },
 ]
@@ -138,6 +133,16 @@ export const EVALUATION_STOPS = Object.freeze(
 export const PROJECT_GALLERY_PROGRESS_RANGE = Object.freeze({
   start: findClosestProgress(cameraPoint(-7.5, 12)),
   end: findClosestProgress(cameraPoint(4.2, 8.7)),
+})
+
+export const AUDIO_STORY_PROGRESS_RANGE = Object.freeze({
+  start: findClosestProgress(cameraPoint(4.2, 8.7)),
+  end: findClosestProgress(cameraPoint(7.1, 4)),
+})
+
+export const SOCIAL_NETWORK_PROGRESS_RANGE = Object.freeze({
+  start: findClosestProgress(cameraPoint(6.7, 4)),
+  end: findClosestProgress(cameraPoint(11.1, 4)),
 })
 
 const PROJECT_FOCUS_ZONES = Object.freeze(

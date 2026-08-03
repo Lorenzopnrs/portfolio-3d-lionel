@@ -39,7 +39,7 @@ function settleTransition(controller) {
   }
 }
 
-test('reduced motion visits all five stops forward and backward', () => {
+test('reduced motion visits all four route stops forward and backward', () => {
   const controller = createMovementState()
   setReducedMotion(controller, true)
   settleTransition(controller)

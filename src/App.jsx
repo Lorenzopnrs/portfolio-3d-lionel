@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
 import { Canvas } from '@react-three/fiber'
 import './App.css'
 import { EVALUATION_STOPS, INITIAL_PROGRESS } from './prototype/cameraPath'
@@ -13,22 +19,73 @@ import { PrototypeInterface } from './prototype/PrototypeInterface'
 import { usePathControls } from './prototype/usePathControls'
 import {
   aboutContent,
-  contactContent,
-  projects,
+  audioStories,
+  books,
+  socialContent,
   socialLinks,
 } from './content/portfolioContent'
+import { AboutDetailOverlay } from './final-route/AboutDetailOverlay'
+import { AudioStoryDetailOverlay } from './final-route/AudioStoryDetailOverlay'
+import { BookDetailOverlay } from './final-route/BookDetailOverlay'
 import { ContextualContentControls } from './final-route/ContextualContentControls'
 import { FinalPrototypeEnvironment } from './final-route/FinalPrototypeEnvironment'
+import { FocusedBookFrame } from './final-route/FocusedBookFrame'
+import {
+  BOOK_FOCUS_INITIAL_STATE,
+  reduceBookFocus,
+} from './final-route/bookFocusState'
 import {
   getReturnFocusTarget,
+  isAudioSurfaceInteractionEnabled,
   isProjectSurfaceInteractionEnabled,
-  shouldOpenProjectIndex,
+  isSocialSurfaceInteractionEnabled,
 } from './final-route/interactionState'
-import { AboutDetailOverlay } from './final-route/AboutDetailOverlay'
-import { ProjectDetailOverlay } from './final-route/ProjectDetailOverlay'
+import { SocialDetailOverlay } from './final-route/SocialDetailOverlay'
+
+function getContentRecord(contentType, contentId) {
+  if (contentType === 'about' && contentId === aboutContent.id) {
+    return aboutContent
+  }
+
+  if (contentType === 'book') {
+    return books.find((book) => book.id === contentId) ?? null
+  }
+
+  if (contentType === 'audio-story') {
+    return audioStories.find((story) => story.id === contentId) ?? null
+  }
+
+  if (contentType === 'social' && contentId === socialContent.id) {
+    return socialContent
+  }
+
+  return null
+}
+
+function getContentTriggerSelector(content) {
+  if (content.type === 'about') {
+    return '[data-about-trigger]'
+  }
+
+  if (content.type === 'book') {
+    return `[data-book-id="${content.id}"]`
+  }
+
+  if (content.type === 'audio-story') {
+    return `[data-audio-story-id="${content.id}"]`
+  }
+
+  if (content.type === 'social') {
+    return '[data-social-trigger]'
+  }
+
+  return null
+}
 
 function App() {
   const movementRef = useRef(createMovementState())
+  const contentTriggerRef = useRef(null)
+  const bookFocusTriggerRef = useRef(null)
   const [reducedMotionEnabled, setReducedMotionEnabled] = useState(() =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
@@ -37,11 +94,12 @@ function App() {
     activeStopIndex: null,
   })
   const [announcement, setAnnouncement] = useState('')
-  const [aboutOpen, setAboutOpen] = useState(false)
-  const [activeProjectId, setActiveProjectId] = useState(null)
-  const [projectIndexOpen, setProjectIndexOpen] = useState(false)
-  const aboutTriggerRef = useRef(null)
-  const projectTriggerRef = useRef(null)
+  const [activeContent, setActiveContent] = useState(null)
+  const [archiveIndexOpen, setArchiveIndexOpen] = useState(false)
+  const [bookFocus, dispatchBookFocus] = useReducer(
+    reduceBookFocus,
+    BOOK_FOCUS_INITIAL_STATE,
+  )
 
   usePathControls(movementRef)
 
@@ -67,105 +125,188 @@ function App() {
     setReducedMotion(movementRef.current, reducedMotionEnabled)
   }, [reducedMotionEnabled])
 
-  const handleTelemetry = useCallback(
-    (nextTelemetry) => {
-      setTelemetry(nextTelemetry)
-      const activeStop =
-        nextTelemetry.activeStopIndex === null
-          ? null
-          : EVALUATION_STOPS[nextTelemetry.activeStopIndex]
+  const handleTelemetry = useCallback((nextTelemetry) => {
+    setTelemetry(nextTelemetry)
+    const activeStop =
+      nextTelemetry.activeStopIndex === null
+        ? null
+        : EVALUATION_STOPS[nextTelemetry.activeStopIndex]
 
-      if (activeStop) {
-        setAnnouncement(`${activeStop.label} reached`)
-
-        if (
-          shouldOpenProjectIndex(
-            reducedMotionEnabled,
-            activeStop.id,
-          )
-        ) {
-          setProjectIndexOpen(true)
-        }
-      } else {
-        setAnnouncement('')
-      }
-    },
-    [reducedMotionEnabled],
-  )
+    setAnnouncement(activeStop ? `${activeStop.label} reached` : '')
+  }, [])
 
   const handleMove = useCallback((direction) => {
     applyDirectionalInput(movementRef.current, direction)
   }, [])
 
-  const handleProjectSelect = useCallback((projectId, trigger = null) => {
-    if (!projects.some((project) => project.id === projectId)) {
+  const handleContentOpen = useCallback(
+    (contentType, contentId, trigger = null) => {
+      const contentRecord = getContentRecord(contentType, contentId)
+
+      if (!contentRecord) {
+        return
+      }
+
+      contentTriggerRef.current =
+        trigger && typeof trigger.focus === 'function' ? trigger : null
+      setTravelLocked(movementRef.current, true)
+      setActiveContent({ id: contentId, type: contentType })
+      setAnnouncement(`${contentRecord.title} opened`)
+    },
+    [],
+  )
+
+  const handleContentClose = useCallback(() => {
+    if (!activeContent) {
       return
     }
 
-    projectTriggerRef.current =
-      trigger instanceof HTMLElement ? trigger : null
-    setTravelLocked(movementRef.current, true)
-    setActiveProjectId(projectId)
-    setAnnouncement(`${projectId} opened`)
-  }, [])
-
-  const handleProjectClose = useCallback(() => {
-    const projectId = activeProjectId
+    const closingContent = activeContent
+    const contentRecord = getContentRecord(
+      closingContent.type,
+      closingContent.id,
+    )
     setTravelLocked(movementRef.current, false)
-    setActiveProjectId(null)
-    setAnnouncement(`${projectId} closed. Route position restored.`)
+    setActiveContent(null)
+    setAnnouncement(
+      `${contentRecord?.title ?? 'Archive'} closed. Route position restored.`,
+    )
 
     window.requestAnimationFrame(() => {
-      const fallbackTrigger = projectId
-        ? document.querySelector(
-            `[data-project-id="${projectId}"]`,
-          )
+      const fallbackSelector = getContentTriggerSelector(closingContent)
+      const fallbackTrigger = fallbackSelector
+        ? document.querySelector(fallbackSelector)
         : null
       const focusTarget = getReturnFocusTarget(
-        projectTriggerRef.current,
+        contentTriggerRef.current,
         fallbackTrigger,
         document.querySelector('.direction-button'),
       )
 
       focusTarget?.focus()
-      projectTriggerRef.current = null
+      contentTriggerRef.current = null
     })
-  }, [activeProjectId])
+  }, [activeContent])
 
-  const handleAboutOpen = useCallback((trigger = null) => {
-    aboutTriggerRef.current =
-      trigger instanceof HTMLElement ? trigger : null
+  const handleAboutOpen = useCallback(
+    (trigger = null) =>
+      handleContentOpen('about', aboutContent.id, trigger),
+    [handleContentOpen],
+  )
+
+  const handleBookSelect = useCallback((bookId, trigger = null) => {
+    const book = getContentRecord('book', bookId)
+
+    if (!book) {
+      return
+    }
+
+    bookFocusTriggerRef.current =
+      trigger && typeof trigger.focus === 'function' ? trigger : null
     setTravelLocked(movementRef.current, true)
-    setAboutOpen(true)
-    setAnnouncement('About me opened')
+    dispatchBookFocus({ type: 'focus', bookId })
+    setAnnouncement(`${book.title} focused`)
   }, [])
 
-  const handleAboutClose = useCallback(() => {
-    setTravelLocked(movementRef.current, false)
-    setAboutOpen(false)
-    setAnnouncement('About me closed. Route position restored.')
+  const handleBookDetailsOpen = useCallback(
+    (trigger = null) => {
+      const book = getContentRecord('book', bookFocus.bookId)
+
+      if (!book) {
+        return
+      }
+
+      contentTriggerRef.current =
+        trigger && typeof trigger.focus === 'function' ? trigger : null
+      dispatchBookFocus({ type: 'open-detail' })
+      setAnnouncement(`${book.title} opened`)
+    },
+    [bookFocus.bookId],
+  )
+
+  const handleBookDetailClose = useCallback(() => {
+    const book = getContentRecord('book', bookFocus.bookId)
+
+    if (!bookFocus.detailOpen || !book) {
+      return
+    }
+
+    dispatchBookFocus({ type: 'close-detail' })
+    setAnnouncement(`${book.title} returned to focused cover`)
 
     window.requestAnimationFrame(() => {
       const focusTarget = getReturnFocusTarget(
-        aboutTriggerRef.current,
-        document.querySelector('[data-about-trigger]'),
+        contentTriggerRef.current,
+        document.querySelector('.book-focus-cover-button'),
         document.querySelector('.direction-button'),
       )
 
       focusTarget?.focus()
-      aboutTriggerRef.current = null
+      contentTriggerRef.current = null
     })
-  }, [])
+  }, [bookFocus.bookId, bookFocus.detailOpen])
 
-  const activeProject =
-    projects.find((project) => project.id === activeProjectId) ?? null
+  const handleBookFocusClose = useCallback(() => {
+    const book = getContentRecord('book', bookFocus.bookId)
+
+    if (!book) {
+      return
+    }
+
+    const closingBookId = book.id
+    dispatchBookFocus({ type: 'close' })
+    setTravelLocked(movementRef.current, false)
+    setAnnouncement(`${book.title} closed. Route position restored.`)
+
+    window.requestAnimationFrame(() => {
+      const fallbackTrigger = document.querySelector(
+        `[data-book-id="${closingBookId}"]`,
+      )
+      const focusTarget = getReturnFocusTarget(
+        bookFocusTriggerRef.current,
+        fallbackTrigger,
+        document.querySelector('.direction-button'),
+      )
+
+      focusTarget?.focus()
+      bookFocusTriggerRef.current = null
+    })
+  }, [bookFocus.bookId])
+
+  const handleAudioStorySelect = useCallback(
+    (storyId, trigger = null) =>
+      handleContentOpen('audio-story', storyId, trigger),
+    [handleContentOpen],
+  )
+
+  const handleSocialOpen = useCallback(
+    (trigger = null) =>
+      handleContentOpen('social', socialContent.id, trigger),
+    [handleContentOpen],
+  )
+
+  const focusedBook = bookFocus.bookId
+    ? getContentRecord('book', bookFocus.bookId)
+    : null
+  const activeBook = bookFocus.detailOpen ? focusedBook : null
+  const activeAudioStory =
+    activeContent?.type === 'audio-story'
+      ? getContentRecord(activeContent.type, activeContent.id)
+      : null
+  const aboutOpen = activeContent?.type === 'about'
+  const socialOpen = activeContent?.type === 'social'
   const activeStopId =
     telemetry.activeStopIndex === null
       ? null
       : EVALUATION_STOPS[telemetry.activeStopIndex].id
-  const projectSurfaceInteractionEnabled =
+  const bookSurfaceInteractionEnabled =
     isProjectSurfaceInteractionEnabled(telemetry.progress)
-  const interactionLocked = activeProject !== null || aboutOpen
+  const audioSurfaceInteractionEnabled =
+    isAudioSurfaceInteractionEnabled(telemetry.progress)
+  const socialSurfaceInteractionEnabled =
+    isSocialSurfaceInteractionEnabled(telemetry.progress)
+  const interactionLocked =
+    activeContent !== null || bookFocus.bookId !== null
 
   return (
     <main className="prototype-shell">
@@ -194,10 +335,14 @@ function App() {
               intensity={1.78}
             />
             <FinalPrototypeEnvironment
+              audioInteractionEnabled={audioSurfaceInteractionEnabled}
+              bookInteractionEnabled={bookSurfaceInteractionEnabled}
               onAboutOpen={handleAboutOpen}
-              onProjectSelect={handleProjectSelect}
-              projectInteractionEnabled={projectSurfaceInteractionEnabled}
+              onAudioStorySelect={handleAudioStorySelect}
+              onBookSelect={handleBookSelect}
+              onSocialOpen={handleSocialOpen}
               reducedMotionEnabled={reducedMotionEnabled}
+              socialInteractionEnabled={socialSurfaceInteractionEnabled}
             />
             <PathCamera
               movementRef={movementRef}
@@ -208,23 +353,25 @@ function App() {
 
         <PrototypeInterface
           activeStopIndex={telemetry.activeStopIndex}
+          archiveIndexOpen={archiveIndexOpen}
+          interactionLocked={interactionLocked}
           progress={telemetry.progress}
           reducedMotionEnabled={reducedMotionEnabled}
-          interactionLocked={interactionLocked}
-          projectIndexOpen={projectIndexOpen}
-          onReducedMotionChange={setReducedMotionEnabled}
+          onArchiveIndexToggle={() =>
+            setArchiveIndexOpen((isOpen) => !isOpen)
+          }
           onMoveBackward={() => handleMove(-1)}
           onMoveForward={() => handleMove(1)}
-          onProjectIndexToggle={() =>
-            setProjectIndexOpen((isOpen) => !isOpen)
-          }
+          onReducedMotionChange={setReducedMotionEnabled}
         />
 
         <ContextualContentControls
           activeStopId={activeStopId}
+          archiveIndexOpen={archiveIndexOpen}
           interactionLocked={interactionLocked}
-          onProjectSelect={handleProjectSelect}
-          projectIndexOpen={projectIndexOpen}
+          onAudioStorySelect={handleAudioStorySelect}
+          onBookSelect={handleBookSelect}
+          onSocialOpen={handleSocialOpen}
         />
 
         <p className="sr-only" aria-live="polite">
@@ -245,48 +392,75 @@ function App() {
 
         <section
           className="sr-only"
-          aria-labelledby="project-index-heading"
+          aria-labelledby="route-content-heading"
         >
-          <h2 id="project-index-heading">Project index</h2>
+          <h2 id="route-content-heading">Portfolio content</h2>
+          <h3>{aboutContent.title}</h3>
+          {aboutContent.paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+          <h3>LIVRES</h3>
           <ol>
-            {projects.map((project) => (
-              <li key={project.id}>
-                <h3>{project.title}</h3>
-                <p>{project.shortSummary}</p>
+            {books.map((book) => (
+              <li key={book.id}>
+                {book.title}, {book.author}. {book.summary}
               </li>
             ))}
           </ol>
-        </section>
-
-        <section
-          className="sr-only"
-          aria-labelledby="route-content-heading"
-        >
-          <h2 id="route-content-heading">Route content</h2>
-          <h3>{aboutContent.title}</h3>
-          <p>{aboutContent.summary}</p>
-          <h3>Social Networks</h3>
+          <h3>HISTOIRES AUDIOS</h3>
+          <ol>
+            {audioStories.map((story) => (
+              <li key={story.id}>
+                {story.title}. {story.summary}
+              </li>
+            ))}
+          </ol>
+          <h3>{socialContent.title}</h3>
           <ul>
             {socialLinks.map((socialLink) => (
-              <li key={socialLink.id}>{socialLink.label}</li>
+              <li key={socialLink.id}>
+                {socialLink.label}: {socialLink.href}
+              </li>
             ))}
           </ul>
-          <h3>{contactContent.title}</h3>
-          <p>{contactContent.summary}</p>
         </section>
       </div>
-
-      {activeProject && (
-        <ProjectDetailOverlay
-          project={activeProject}
-          onClose={handleProjectClose}
-        />
-      )}
 
       {aboutOpen && (
         <AboutDetailOverlay
           about={aboutContent}
-          onClose={handleAboutClose}
+          onClose={handleContentClose}
+        />
+      )}
+
+      {focusedBook && !bookFocus.detailOpen && (
+        <FocusedBookFrame
+          book={focusedBook}
+          onClose={handleBookFocusClose}
+          onOpenDetails={handleBookDetailsOpen}
+          reducedMotionEnabled={reducedMotionEnabled}
+        />
+      )}
+
+      {activeBook && (
+        <BookDetailOverlay
+          book={activeBook}
+          onClose={handleBookDetailClose}
+        />
+      )}
+
+      {activeAudioStory && (
+        <AudioStoryDetailOverlay
+          story={activeAudioStory}
+          onClose={handleContentClose}
+        />
+      )}
+
+      {socialOpen && (
+        <SocialDetailOverlay
+          content={socialContent}
+          links={socialLinks}
+          onClose={handleContentClose}
         />
       )}
     </main>
