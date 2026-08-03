@@ -70,21 +70,23 @@ test('About is not repeated in corridor contextual controls', () => {
   assert.doesNotMatch(contextualControls, /A PROPOS DE MOI/)
 })
 
-test('About uses the supplied papyrus as a complete manuscript container', () => {
+test('About uses a responsive professional profile panel without papyrus', () => {
   const stylesheet = readFileSync(stylesheetPath, 'utf8')
   const aboutOverlay = readFileSync(aboutOverlayPath, 'utf8')
   const archiveDialog = readFileSync(archiveDialogPath, 'utf8')
+  const profileRule = stylesheet.match(
+    /\.archive-dialog\.is-profile\s*\{([\s\S]*?)\n\}/,
+  )?.[1]
 
-  assert.match(stylesheet, /elements\/papier\.png/)
-  assert.match(aboutOverlay, /variant="manuscript"/)
-  assert.match(archiveDialog, /is-manuscript/)
+  assert.match(aboutOverlay, /variant="profile"/)
+  assert.doesNotMatch(aboutOverlay, /variant="manuscript"/)
+  assert.match(archiveDialog, /is-profile/)
+  assert.ok(profileRule)
+  assert.match(profileRule, /background:/)
+  assert.doesNotMatch(profileRule, /papier\.png/)
   assert.match(
     stylesheet,
-    /\.archive-dialog\.is-manuscript[\s\S]*?background:[\s\S]*?papier\.png/,
-  )
-  assert.match(
-    stylesheet,
-    /\.archive-dialog\.is-manuscript \.archive-dialog-header[\s\S]*?background:\s*transparent/,
+    /@media \(max-width: 640px\)[\s\S]*?\.archive-dialog\.is-profile/,
   )
 })
 

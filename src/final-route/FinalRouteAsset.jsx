@@ -4,7 +4,9 @@ import {
   CanvasTexture,
   ClampToEdgeWrapping,
   Color,
+  DoubleSide,
   MeshStandardMaterial,
+  PlaneGeometry,
   SRGBColorSpace,
 } from 'three'
 import { useSafeTexture } from '../assets/useSafeTexture.js'
@@ -28,10 +30,25 @@ const ASSEMBLY_NAME = 'FinalRouteAssetLibraryAssembly'
 const RUNNER_NAME = 'FinalRouteRunner'
 const PROJECT_SURFACE_PATTERN = /^ProjectInteractionSurface_(\d+)$/
 const SOCIAL_SURFACE_PATTERN = /^SocialInteractionSurface_(\d+)$/
-const BOOK_SURFACE_DIMENSIONS = Object.freeze([
-  Object.freeze([800, 1000]),
-  Object.freeze([866, 1000]),
-  Object.freeze([876, 1000]),
+const BOOK_SURFACE_LAYOUTS = Object.freeze([
+  Object.freeze({
+    normalX: -1,
+    textureDimensions: Object.freeze([800, 1000]),
+    worldHeight: 2.15,
+    worldWidth: 1.72,
+  }),
+  Object.freeze({
+    normalX: 1,
+    textureDimensions: Object.freeze([866, 1000]),
+    worldHeight: 2.02,
+    worldWidth: 1.75,
+  }),
+  Object.freeze({
+    normalX: -1,
+    textureDimensions: Object.freeze([876, 1000]),
+    worldHeight: 1.78,
+    worldWidth: 1.56,
+  }),
 ])
 const BOOK_COVER_TEXTURE_URLS = books.map((book) => book.cover.src)
 
@@ -220,7 +237,10 @@ function drawBookSurface(
   width,
   height,
 ) {
-  const frameInset = Math.round(width * 0.035)
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = 'high'
+
+  const frameInset = Math.round(Math.min(width, height) * 0.045)
   const imageAreaWidth = width - frameInset * 2
   const imageAreaHeight = height - frameInset * 2
   const imageWidth = sourceImage.naturalWidth ?? sourceImage.width
@@ -235,22 +255,38 @@ function drawBookSurface(
     imageRatio > areaRatio
       ? imageAreaWidth / imageRatio
       : imageAreaHeight
-  const drawX = (width - drawWidth) / 2
-  const drawY = (height - drawHeight) / 2
+  const drawX = Math.round((width - drawWidth) / 2)
+  const drawY = Math.round((height - drawHeight) / 2)
+  const matte = context.createLinearGradient(0, 0, width, height)
 
-  context.fillStyle = '#17130f'
+  matte.addColorStop(0, '#211a14')
+  matte.addColorStop(0.52, '#14110e')
+  matte.addColorStop(1, '#241b14')
+  context.fillStyle = matte
   context.fillRect(0, 0, width, height)
-  context.shadowColor = 'rgb(0 0 0 / 68%)'
-  context.shadowBlur = Math.round(width * 0.035)
-  context.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight)
-  context.shadowBlur = 0
-  context.strokeStyle = '#765838'
-  context.lineWidth = Math.max(3, Math.round(width * 0.006))
+  context.strokeStyle = 'rgb(142 108 68 / 58%)'
+  context.lineWidth = Math.max(2, Math.round(width * 0.004))
   context.strokeRect(
     frameInset,
     frameInset,
     imageAreaWidth,
     imageAreaHeight,
+  )
+
+  context.save()
+  context.shadowColor = 'rgb(0 0 0 / 68%)'
+  context.shadowBlur = Math.round(width * 0.028)
+  context.shadowOffsetY = Math.round(height * 0.012)
+  context.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight)
+  context.restore()
+
+  context.strokeStyle = 'rgb(197 166 112 / 72%)'
+  context.lineWidth = Math.max(2, Math.round(width * 0.0035))
+  context.strokeRect(
+    drawX,
+    drawY,
+    Math.round(drawWidth),
+    Math.round(drawHeight),
   )
 }
 
@@ -312,7 +348,11 @@ function drawSocialSurface(context, width, height) {
   context.fillText('OUVRIR LES LIENS', 78, height - 112)
 }
 
-function createSurfaceMaterial(drawSurface, dimensions = [768, 1024]) {
+function createSurfaceMaterial(
+  drawSurface,
+  dimensions = [768, 1024],
+  { flipY = false } = {},
+) {
   const canvas = document.createElement('canvas')
   canvas.width = dimensions[0]
   canvas.height = dimensions[1]
@@ -321,7 +361,7 @@ function createSurfaceMaterial(drawSurface, dimensions = [768, 1024]) {
 
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
-  texture.flipY = false
+  texture.flipY = flipY
   texture.wrapS = ClampToEdgeWrapping
   texture.wrapT = ClampToEdgeWrapping
   texture.anisotropy = 8
@@ -340,6 +380,7 @@ function createSurfaceMaterial(drawSurface, dimensions = [768, 1024]) {
 }
 
 function createBookCoverMaterial(sourceTexture, index) {
+  const layout = BOOK_SURFACE_LAYOUTS[index]
   const material = createSurfaceMaterial(
     (context, width, height) =>
       drawBookSurface(
@@ -348,10 +389,31 @@ function createBookCoverMaterial(sourceTexture, index) {
         width,
         height,
       ),
-    BOOK_SURFACE_DIMENSIONS[index],
+    layout.textureDimensions,
+    { flipY: true },
   )
+  material.color.set('#ffffff')
+  material.depthTest = true
+  material.depthWrite = true
+  material.emissive.set('#ffffff')
+  material.emissiveMap = material.map
+  material.emissiveIntensity = 0.075
+  material.roughness = 0.9
+  material.side = DoubleSide
+  material.transparent = false
   material.name = `BookCoverSurface_${String(index + 1).padStart(2, '0')}`
   return material
+}
+
+function createBookSurfaceGeometry(index) {
+  const layout = BOOK_SURFACE_LAYOUTS[index]
+  const geometry = new PlaneGeometry(
+    layout.worldWidth,
+    layout.worldHeight,
+  )
+
+  geometry.rotateY(layout.normalX * Math.PI * 0.5)
+  return geometry
 }
 
 function createInformationMaterials(bookCoverTextures) {
@@ -413,25 +475,31 @@ function FinalRouteModel({
   const firstBookCoverTexture = useSafeTexture(
     BOOK_COVER_TEXTURE_URLS[0],
     {
-      fallbackHeight: BOOK_SURFACE_DIMENSIONS[0][1],
+      fallbackHeight:
+        BOOK_SURFACE_LAYOUTS[0].textureDimensions[1],
       fallbackLabel: books[0].title,
-      fallbackWidth: BOOK_SURFACE_DIMENSIONS[0][0],
+      fallbackWidth:
+        BOOK_SURFACE_LAYOUTS[0].textureDimensions[0],
     },
   )
   const secondBookCoverTexture = useSafeTexture(
     BOOK_COVER_TEXTURE_URLS[1],
     {
-      fallbackHeight: BOOK_SURFACE_DIMENSIONS[1][1],
+      fallbackHeight:
+        BOOK_SURFACE_LAYOUTS[1].textureDimensions[1],
       fallbackLabel: books[1].title,
-      fallbackWidth: BOOK_SURFACE_DIMENSIONS[1][0],
+      fallbackWidth:
+        BOOK_SURFACE_LAYOUTS[1].textureDimensions[0],
     },
   )
   const thirdBookCoverTexture = useSafeTexture(
     BOOK_COVER_TEXTURE_URLS[2],
     {
-      fallbackHeight: BOOK_SURFACE_DIMENSIONS[2][1],
+      fallbackHeight:
+        BOOK_SURFACE_LAYOUTS[2].textureDimensions[1],
       fallbackLabel: books[2].title,
-      fallbackWidth: BOOK_SURFACE_DIMENSIONS[2][0],
+      fallbackWidth:
+        BOOK_SURFACE_LAYOUTS[2].textureDimensions[0],
     },
   )
   const bookCoverTextures = useMemo(
@@ -496,12 +564,16 @@ function FinalRouteModel({
 
       const projectMatch = PROJECT_SURFACE_PATTERN.exec(object.name)
       if (projectMatch) {
+        const surfaceIndex = Number(projectMatch[1]) - 1
+
+        object.geometry = createBookSurfaceGeometry(surfaceIndex)
         object.material =
-          informationMaterials.bookMaterials[
-            Number(projectMatch[1]) - 1
-          ]
+          informationMaterials.bookMaterials[surfaceIndex]
+        object.castShadow = false
+        object.receiveShadow = true
+        object.renderOrder = 1
         object.userData.bookId =
-          books[Number(projectMatch[1]) - 1]?.id
+          books[surfaceIndex]?.id
         return
       }
 

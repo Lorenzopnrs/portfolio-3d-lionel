@@ -22,7 +22,6 @@ const runtimeSourcePaths = Object.freeze([
 const safeImageConsumers = Object.freeze([
   'src/final-route/AboutDetailOverlay.jsx',
   'src/final-route/BookDetailOverlay.jsx',
-  'src/final-route/FocusedBookFrame.jsx',
   'src/final-route/ProjectDetailOverlay.jsx',
 ])
 

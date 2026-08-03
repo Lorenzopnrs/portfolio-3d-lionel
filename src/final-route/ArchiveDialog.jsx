@@ -22,7 +22,7 @@ export function ArchiveDialog({
   const dialogRef = useRef(null)
   const closeButtonRef = useRef(null)
   const variantClassName =
-    variant === 'manuscript' ? 'is-manuscript' : 'is-default'
+    variant === 'profile' ? 'is-profile' : 'is-default'
 
   useEffect(() => {
     closeButtonRef.current?.focus()

@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useReducer,
   useRef,
   useState,
 } from 'react'
@@ -29,11 +28,6 @@ import { AudioStoryDetailOverlay } from './final-route/AudioStoryDetailOverlay'
 import { BookDetailOverlay } from './final-route/BookDetailOverlay'
 import { ContextualContentControls } from './final-route/ContextualContentControls'
 import { FinalPrototypeEnvironment } from './final-route/FinalPrototypeEnvironment'
-import { FocusedBookFrame } from './final-route/FocusedBookFrame'
-import {
-  BOOK_FOCUS_INITIAL_STATE,
-  reduceBookFocus,
-} from './final-route/bookFocusState'
 import {
   getReturnFocusTarget,
   isAudioSurfaceInteractionEnabled,
@@ -85,7 +79,6 @@ function getContentTriggerSelector(content) {
 function App() {
   const movementRef = useRef(createMovementState())
   const contentTriggerRef = useRef(null)
-  const bookFocusTriggerRef = useRef(null)
   const [reducedMotionEnabled, setReducedMotionEnabled] = useState(() =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
@@ -96,10 +89,6 @@ function App() {
   const [announcement, setAnnouncement] = useState('')
   const [activeContent, setActiveContent] = useState(null)
   const [archiveIndexOpen, setArchiveIndexOpen] = useState(false)
-  const [bookFocus, dispatchBookFocus] = useReducer(
-    reduceBookFocus,
-    BOOK_FOCUS_INITIAL_STATE,
-  )
 
   usePathControls(movementRef)
 
@@ -194,84 +183,11 @@ function App() {
     [handleContentOpen],
   )
 
-  const handleBookSelect = useCallback((bookId, trigger = null) => {
-    const book = getContentRecord('book', bookId)
-
-    if (!book) {
-      return
-    }
-
-    bookFocusTriggerRef.current =
-      trigger && typeof trigger.focus === 'function' ? trigger : null
-    setTravelLocked(movementRef.current, true)
-    dispatchBookFocus({ type: 'focus', bookId })
-    setAnnouncement(`${book.title} focused`)
-  }, [])
-
-  const handleBookDetailsOpen = useCallback(
-    (trigger = null) => {
-      const book = getContentRecord('book', bookFocus.bookId)
-
-      if (!book) {
-        return
-      }
-
-      contentTriggerRef.current =
-        trigger && typeof trigger.focus === 'function' ? trigger : null
-      dispatchBookFocus({ type: 'open-detail' })
-      setAnnouncement(`${book.title} opened`)
-    },
-    [bookFocus.bookId],
+  const handleBookSelect = useCallback(
+    (bookId, trigger = null) =>
+      handleContentOpen('book', bookId, trigger),
+    [handleContentOpen],
   )
-
-  const handleBookDetailClose = useCallback(() => {
-    const book = getContentRecord('book', bookFocus.bookId)
-
-    if (!bookFocus.detailOpen || !book) {
-      return
-    }
-
-    dispatchBookFocus({ type: 'close-detail' })
-    setAnnouncement(`${book.title} returned to focused cover`)
-
-    window.requestAnimationFrame(() => {
-      const focusTarget = getReturnFocusTarget(
-        contentTriggerRef.current,
-        document.querySelector('.book-focus-cover-button'),
-        document.querySelector('.direction-button'),
-      )
-
-      focusTarget?.focus()
-      contentTriggerRef.current = null
-    })
-  }, [bookFocus.bookId, bookFocus.detailOpen])
-
-  const handleBookFocusClose = useCallback(() => {
-    const book = getContentRecord('book', bookFocus.bookId)
-
-    if (!book) {
-      return
-    }
-
-    const closingBookId = book.id
-    dispatchBookFocus({ type: 'close' })
-    setTravelLocked(movementRef.current, false)
-    setAnnouncement(`${book.title} closed. Route position restored.`)
-
-    window.requestAnimationFrame(() => {
-      const fallbackTrigger = document.querySelector(
-        `[data-book-id="${closingBookId}"]`,
-      )
-      const focusTarget = getReturnFocusTarget(
-        bookFocusTriggerRef.current,
-        fallbackTrigger,
-        document.querySelector('.direction-button'),
-      )
-
-      focusTarget?.focus()
-      bookFocusTriggerRef.current = null
-    })
-  }, [bookFocus.bookId])
 
   const handleAudioStorySelect = useCallback(
     (storyId, trigger = null) =>
@@ -285,10 +201,10 @@ function App() {
     [handleContentOpen],
   )
 
-  const focusedBook = bookFocus.bookId
-    ? getContentRecord('book', bookFocus.bookId)
-    : null
-  const activeBook = bookFocus.detailOpen ? focusedBook : null
+  const activeBook =
+    activeContent?.type === 'book'
+      ? getContentRecord(activeContent.type, activeContent.id)
+      : null
   const activeAudioStory =
     activeContent?.type === 'audio-story'
       ? getContentRecord(activeContent.type, activeContent.id)
@@ -305,8 +221,7 @@ function App() {
     isAudioSurfaceInteractionEnabled(telemetry.progress)
   const socialSurfaceInteractionEnabled =
     isSocialSurfaceInteractionEnabled(telemetry.progress)
-  const interactionLocked =
-    activeContent !== null || bookFocus.bookId !== null
+  const interactionLocked = activeContent !== null
 
   return (
     <main className="prototype-shell">
@@ -433,19 +348,10 @@ function App() {
         />
       )}
 
-      {focusedBook && !bookFocus.detailOpen && (
-        <FocusedBookFrame
-          book={focusedBook}
-          onClose={handleBookFocusClose}
-          onOpenDetails={handleBookDetailsOpen}
-          reducedMotionEnabled={reducedMotionEnabled}
-        />
-      )}
-
       {activeBook && (
         <BookDetailOverlay
           book={activeBook}
-          onClose={handleBookDetailClose}
+          onClose={handleContentClose}
         />
       )}
 

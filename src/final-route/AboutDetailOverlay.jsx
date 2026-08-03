@@ -6,21 +6,26 @@ export function AboutDetailOverlay({ about, onClose }) {
     <ArchiveDialog
       className="about-detail-dialog"
       descriptionId="about-detail-introduction"
-      kicker="Archive personnelle"
+      kicker="Portrait d’auteur"
       onClose={onClose}
       title={about.title}
       titleId="about-detail-title"
-      variant="manuscript"
+      variant="profile"
     >
       <div className="about-detail-layout">
         <figure className="about-portrait-figure">
-          <img
-            src={about.portrait.src}
-            alt={about.portrait.alt}
-            decoding="async"
-            onError={handleImageError}
-          />
-          <figcaption>Lionel Chiry</figcaption>
+          <div className="about-portrait-matte">
+            <img
+              src={about.portrait.src}
+              alt={about.portrait.alt}
+              decoding="async"
+              onError={handleImageError}
+            />
+          </div>
+          <figcaption>
+            <strong>Lionel Chiry</strong>
+            <span>Auteur</span>
+          </figcaption>
         </figure>
 
         <article className="about-detail-copy">
