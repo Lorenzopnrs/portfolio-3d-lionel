@@ -1,22 +1,7 @@
-const aboutPortraitUrl = new URL(
-  '../../catégories/A propos de moi/thumbnail11211.1605532180.jpg',
-  import.meta.url,
-).href
-
-const shadowOfJackCoverUrl = new URL(
-  '../../catégories/livres/Tome 1/affiche1.jpeg',
-  import.meta.url,
-).href
-
-const shadowOfJackVolumeTwoCoverUrl = new URL(
-  '../../catégories/livres/Tome 2/affiche2.jpeg',
-  import.meta.url,
-).href
-
-const thinkerCoverUrl = new URL(
-  '../../catégories/livres/Le penseur/affiche.jpeg',
-  import.meta.url,
-).href
+import {
+  ABOUT_PORTRAIT_URL,
+  BOOK_COVER_URLS,
+} from '../assets/runtimeAssetPaths.js'
 
 export const aboutContent = Object.freeze({
   id: 'about',
@@ -27,12 +12,12 @@ export const aboutContent = Object.freeze({
     'Aujourd\'hui, mon métier d’éducateur spécialisé nourrit mon regard d’auteur. Mon expérience de vie et mon quotidien auprès de l\'humain m\'ont appris à observer les fêlures, les silences et la résilience. J\'écris pour explorer ces zones d\'ombre de la psyché où la réalité se fragmente, en y insufflant toute l\'authenticité que mon parcours m\'a enseignée.',
   ]),
   portrait: Object.freeze({
-    src: aboutPortraitUrl,
+    src: ABOUT_PORTRAIT_URL,
     alt: 'Black-and-white portrait of Lionel Chiry seated outdoors.',
   }),
   sourceFiles: Object.freeze([
     'catégories/A propos de moi/aproposdemoi.rtf',
-    'catégories/A propos de moi/thumbnail11211.1605532180.jpg',
+    ABOUT_PORTRAIT_URL,
   ]),
 })
 
@@ -52,7 +37,7 @@ export const books = Object.freeze([
       'Dans ce thriller psychologique, Lionel Chiry nous plonge dans l’abîme, là où les souvenirs d’enfance deviennent des armes fatales.',
     ]),
     cover: Object.freeze({
-      src: shadowOfJackCoverUrl,
+      src: BOOK_COVER_URLS.shadowOfJackVolumeOne,
       alt: 'Cover of L’Ombre de Jack by Lionel Chiry.',
     }),
     teaser: Object.freeze({
@@ -62,7 +47,7 @@ export const books = Object.freeze([
     }),
     sourceFiles: Object.freeze([
       'catégories/livres/Tome 1/infos.rtf',
-      'catégories/livres/Tome 1/affiche1.jpeg',
+      BOOK_COVER_URLS.shadowOfJackVolumeOne,
       'catégories/livres/Tome 1/Teaser1.webloc',
     ]),
   }),
@@ -79,7 +64,7 @@ export const books = Object.freeze([
       'Alors que le puzzle s’assemble, une question demeure : qui est le véritable monstre ? Celui qui se cache derrière un masque de clown, ou celui qui a laissé l’horreur s’installer en 1987 ? La vérité est une cellule dont on ne sort pas indemne.',
     ]),
     cover: Object.freeze({
-      src: shadowOfJackVolumeTwoCoverUrl,
+      src: BOOK_COVER_URLS.shadowOfJackVolumeTwo,
       alt: 'Cover of L’Ombre de Jack Tome 2 by Lionel Chiry.',
     }),
     teaser: Object.freeze({
@@ -90,7 +75,7 @@ export const books = Object.freeze([
     }),
     sourceFiles: Object.freeze([
       'catégories/livres/Tome 2/infos.rtf',
-      'catégories/livres/Tome 2/affiche2.jpeg',
+      BOOK_COVER_URLS.shadowOfJackVolumeTwo,
       'catégories/livres/Tome 2/Teaser2.webloc',
     ]),
   }),
@@ -108,13 +93,13 @@ export const books = Object.freeze([
       'En réalité tout sera compliqué !',
     ]),
     cover: Object.freeze({
-      src: thinkerCoverUrl,
+      src: BOOK_COVER_URLS.thinker,
       alt: 'Cover of Le Penseur by Lionel Chiry.',
     }),
     teaser: null,
     sourceFiles: Object.freeze([
       'catégories/livres/Le penseur/infos.rtf',
-      'catégories/livres/Le penseur/affiche.jpeg',
+      BOOK_COVER_URLS.thinker,
     ]),
   }),
 ])

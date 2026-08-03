@@ -1,3 +1,4 @@
+import { handleImageError } from '../assets/imageFallback.js'
 import { ArchiveDialog } from './ArchiveDialog'
 import { EmbeddedYouTubeMedia } from './EmbeddedYouTubeMedia'
 
@@ -16,6 +17,7 @@ export function BookDetailOverlay({ book, onClose }) {
             src={book.cover.src}
             alt={book.cover.alt}
             decoding="async"
+            onError={handleImageError}
           />
           <figcaption>{book.author}</figcaption>
         </figure>

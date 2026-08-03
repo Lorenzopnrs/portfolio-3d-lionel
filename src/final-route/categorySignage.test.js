@@ -6,6 +6,7 @@ import { EVALUATION_STOPS } from '../prototype/cameraPath.js'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const signagePath = `${root}src/final-route/CategorySignage.jsx`
+const runtimeAssetPathsPath = `${root}src/assets/runtimeAssetPaths.js`
 const finalEnvironmentPath = `${root}src/final-route/FinalPrototypeEnvironment.jsx`
 const prototypeEnvironmentPath = `${root}src/prototype/PrototypeEnvironment.jsx`
 const palettePath = `${root}src/prototype/blockoutPalette.js`
@@ -37,6 +38,10 @@ test('category markers use suspended wooden signage without beige posts', () => 
   }
 
   const signageSource = readFileSync(signagePath, 'utf8')
+  const runtimeAssetPathsSource = readFileSync(
+    runtimeAssetPathsPath,
+    'utf8',
+  )
   const finalEnvironmentSource = readFileSync(
     finalEnvironmentPath,
     'utf8',
@@ -47,7 +52,8 @@ test('category markers use suspended wooden signage without beige posts', () => 
   )
   const paletteSource = readFileSync(palettePath, 'utf8')
 
-  assert.match(signageSource, /elements\/pancarte\.png/)
+  assert.match(signageSource, /CATEGORY_SIGN_URL/)
+  assert.match(runtimeAssetPathsSource, /elements\/pancarte\.png/)
   assert.match(signageSource, /torusGeometry/)
   assert.match(finalEnvironmentSource, /CategorySignage/)
   assert.match(prototypeEnvironmentSource, /CategorySignage/)

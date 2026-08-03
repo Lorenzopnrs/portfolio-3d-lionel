@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { handleImageError } from '../assets/imageFallback.js'
 import {
   canRenderProjectVideo,
   getCaptionTrackSource,
@@ -104,6 +105,7 @@ export function ProjectDetailOverlay({ project, onClose }) {
                 src={project.thumbnail.src}
                 alt={project.thumbnail.alt}
                 decoding="async"
+                onError={handleImageError}
               />
             ) : (
               <div
@@ -130,6 +132,7 @@ export function ProjectDetailOverlay({ project, onClose }) {
                     alt={image.alt}
                     decoding="async"
                     loading="lazy"
+                    onError={handleImageError}
                   />
                 ) : (
                   <div

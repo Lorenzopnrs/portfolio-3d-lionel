@@ -502,7 +502,7 @@
   color: #29221b;
   background:
     linear-gradient(rgb(241 221 176 / 8%), rgb(75 42 21 / 7%)),
-    url('../catégories/elements/papier.png') center / 100% 100%
+    url('/categories/elements/papier.png') center / 100% 100%
       no-repeat,
     #b88e55;
   box-shadow:
@@ -534,14 +534,21 @@
     clamp(54px, 8.2%, 88px);
   background:
     linear-gradient(rgb(255 239 198 / 3%), rgb(74 39 18 / 5%)),
-    url('../catégories/elements/papier.png') center / 100% 100%
-      no-repeat;
+    url('/categories/elements/papier.png') center / 100% 100%
+      no-repeat,
+    #b88e55;
   box-shadow: 0 34px 100px rgb(0 0 0 / 68%);
   scrollbar-color: rgb(91 59 34 / 56%) transparent;
 }
 
 .archive-dialog.is-manuscript::before {
   content: none;
+}
+
+img[data-asset-fallback='true'] {
+  background:
+    linear-gradient(rgb(255 255 255 / 4%), rgb(0 0 0 / 8%)),
+    #2e2923;
 }
 
 .archive-dialog.is-manuscript .archive-dialog-header {

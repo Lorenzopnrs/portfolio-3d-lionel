@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { handleImageError } from '../assets/imageFallback.js'
 
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
@@ -94,6 +95,7 @@ export function FocusedBookFrame({
                 src={book.cover.src}
                 alt=""
                 decoding="async"
+                onError={handleImageError}
               />
             </span>
           </span>

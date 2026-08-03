@@ -7,6 +7,7 @@ import {
   MeshStandardMaterial,
   SRGBColorSpace,
 } from 'three'
+import { useSafeTexture } from '../assets/useSafeTexture.js'
 import {
   audioStories,
   books,
@@ -32,6 +33,7 @@ const BOOK_SURFACE_DIMENSIONS = Object.freeze([
   Object.freeze([866, 1000]),
   Object.freeze([876, 1000]),
 ])
+const BOOK_COVER_TEXTURE_URLS = books.map((book) => book.cover.src)
 
 function collectSourceMaterials(scene) {
   const sourceMaterials = new Map()
@@ -408,8 +410,41 @@ function FinalRouteModel({
   const { scene } = useGLTF(MODEL_URL)
   const { scene: entranceScene } = useGLTF(ENTRANCE_MODEL_URL)
   const runnerTexture = useTexture(RUNNER_TEXTURE_URL)
-  const bookCoverTextures = useTexture(
-    books.map((book) => book.cover.src),
+  const firstBookCoverTexture = useSafeTexture(
+    BOOK_COVER_TEXTURE_URLS[0],
+    {
+      fallbackHeight: BOOK_SURFACE_DIMENSIONS[0][1],
+      fallbackLabel: books[0].title,
+      fallbackWidth: BOOK_SURFACE_DIMENSIONS[0][0],
+    },
+  )
+  const secondBookCoverTexture = useSafeTexture(
+    BOOK_COVER_TEXTURE_URLS[1],
+    {
+      fallbackHeight: BOOK_SURFACE_DIMENSIONS[1][1],
+      fallbackLabel: books[1].title,
+      fallbackWidth: BOOK_SURFACE_DIMENSIONS[1][0],
+    },
+  )
+  const thirdBookCoverTexture = useSafeTexture(
+    BOOK_COVER_TEXTURE_URLS[2],
+    {
+      fallbackHeight: BOOK_SURFACE_DIMENSIONS[2][1],
+      fallbackLabel: books[2].title,
+      fallbackWidth: BOOK_SURFACE_DIMENSIONS[2][0],
+    },
+  )
+  const bookCoverTextures = useMemo(
+    () => [
+      firstBookCoverTexture,
+      secondBookCoverTexture,
+      thirdBookCoverTexture,
+    ],
+    [
+      firstBookCoverTexture,
+      secondBookCoverTexture,
+      thirdBookCoverTexture,
+    ],
   )
   const materialResources = useMemo(
     () => createEntranceMaterialResources(),
@@ -613,4 +648,3 @@ export function FinalRouteAsset(props) {
 useGLTF.preload(MODEL_URL)
 useGLTF.preload(ENTRANCE_MODEL_URL)
 useTexture.preload(RUNNER_TEXTURE_URL)
-books.forEach((book) => useTexture.preload(book.cover.src))

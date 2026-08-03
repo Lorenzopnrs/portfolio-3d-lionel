@@ -1,3 +1,4 @@
+import { handleImageError } from '../assets/imageFallback.js'
 import { ArchiveDialog } from './ArchiveDialog'
 
 export function AboutDetailOverlay({ about, onClose }) {
@@ -17,6 +18,7 @@ export function AboutDetailOverlay({ about, onClose }) {
             src={about.portrait.src}
             alt={about.portrait.alt}
             decoding="async"
+            onError={handleImageError}
           />
           <figcaption>Lionel Chiry</figcaption>
         </figure>

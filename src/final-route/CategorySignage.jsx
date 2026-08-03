@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Html, useTexture } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import {
   CanvasTexture,
@@ -8,15 +8,13 @@ import {
   SRGBColorSpace,
   Vector3,
 } from 'three'
+import { CATEGORY_SIGN_URL } from '../assets/runtimeAssetPaths.js'
+import { useSafeTexture } from '../assets/useSafeTexture.js'
 import {
   EVALUATION_STOPS,
   getPathPlacement,
 } from '../prototype/cameraPath'
 
-const SIGN_REFERENCE_URL = new URL(
-  '../../catégories/elements/pancarte.png',
-  import.meta.url,
-).href
 const SIGN_VISIBILITY_DISTANCE_SQUARED = 144
 const SIGN_CENTER_Y = 3.12
 const SIGN_CENTER_Z = -1.55
@@ -229,7 +227,12 @@ function SuspendedCategorySign({
 }
 
 export function CategorySignage({ reducedMotionEnabled = false }) {
-  const referenceTexture = useTexture(SIGN_REFERENCE_URL)
+  const referenceTexture = useSafeTexture(CATEGORY_SIGN_URL, {
+    fallbackColor: '#5b351c',
+    fallbackHeight: 512,
+    fallbackLabel: 'Category sign',
+    fallbackWidth: 768,
+  })
   const woodTexture = useMemo(
     () => createWoodTexture(referenceTexture),
     [referenceTexture],
@@ -276,5 +279,3 @@ export function CategorySignage({ reducedMotionEnabled = false }) {
     />
   ))
 }
-
-useTexture.preload(SIGN_REFERENCE_URL)

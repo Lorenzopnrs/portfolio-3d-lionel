@@ -10,6 +10,12 @@ import {
   socialLinks,
 } from './portfolioContent.js'
 
+const root = fileURLToPath(new URL('../../', import.meta.url))
+
+function getPublicAssetPath(assetUrl) {
+  return `${root}public${assetUrl}`
+}
+
 test('about content uses the supplied portrait and biography', () => {
   assert.equal(aboutContent.title, 'A PROPOS DE MOI')
   assert.equal(aboutContent.paragraphs.length, 2)
@@ -17,7 +23,7 @@ test('about content uses the supplied portrait and biography', () => {
   assert.match(aboutContent.paragraphs[1], /éducateur spécialisé/)
   assert.ok(aboutContent.portrait.alt)
   assert.equal(
-    existsSync(fileURLToPath(aboutContent.portrait.src)),
+    existsSync(getPublicAssetPath(aboutContent.portrait.src)),
     true,
   )
 })
@@ -39,7 +45,7 @@ test('book archive exposes all supplied covers, texts and teasers', () => {
     assert.ok(book.summary)
     assert.ok(book.backCover.length)
     assert.ok(book.cover.alt)
-    assert.equal(existsSync(fileURLToPath(book.cover.src)), true)
+    assert.equal(existsSync(getPublicAssetPath(book.cover.src)), true)
     assert.ok(book.sourceFiles.some((path) => path.endsWith('infos.rtf')))
   }
 
