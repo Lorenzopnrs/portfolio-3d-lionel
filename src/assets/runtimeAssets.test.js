@@ -9,8 +9,8 @@ const expectedRuntimeAssets = Object.freeze([
   '/categories/books/le-penseur/affiche.jpeg',
   '/categories/books/tome-1/affiche1.jpeg',
   '/categories/books/tome-2/affiche2.jpeg',
-  '/categories/elements/pancarte.png',
-  '/categories/elements/papier.png',
+  '/categories/elements/pancarte.webp',
+  '/categories/elements/papier.webp',
 ])
 
 const runtimeSourcePaths = Object.freeze([
@@ -50,7 +50,7 @@ test('direct runtime images use public ASCII-safe paths', () => {
   assert.doesNotMatch(contentSource, /new URL\(/)
   assert.doesNotMatch(
     contentSource,
-    /cat(?:e\u0301|é)gories[^'"\n]+\.(?:png|jpe?g)/,
+    /cat(?:e\u0301|é)gories[^'"\n]+\.(?:png|webp|jpe?g)/,
   )
   assert.match(contentSource, /ABOUT_PORTRAIT_URL/)
   assert.match(contentSource, /BOOK_COVER_URLS/)

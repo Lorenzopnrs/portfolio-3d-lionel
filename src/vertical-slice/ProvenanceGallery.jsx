@@ -1,6 +1,10 @@
 import { ProvenanceGalleryAsset } from './ProvenanceGalleryAsset'
+import { getShadowMapSize } from '../performance/qualitySettings'
 
-function ProvenanceGalleryLighting() {
+function ProvenanceGalleryLighting({ qualityLevel }) {
+  const smallShadowMapSize = getShadowMapSize(256, qualityLevel)
+  const largeShadowMapSize = getShadowMapSize(512, qualityLevel)
+
   return (
     <>
       <pointLight
@@ -11,20 +15,20 @@ function ProvenanceGalleryLighting() {
         intensity={32.2}
         position={[-14.18, 2.08, 14.08]}
         shadow-bias={-0.0006}
-        shadow-mapSize-height={256}
-        shadow-mapSize-width={256}
+        shadow-mapSize-height={smallShadowMapSize}
+        shadow-mapSize-width={smallShadowMapSize}
         shadow-normalBias={0.04}
       />
       <pointLight
-        castShadow
+        castShadow={qualityLevel !== 'low'}
         color="#ff9d52"
         decay={2}
         distance={3.7}
         intensity={9.8}
         position={[-9.55, 2.08, 14.08]}
         shadow-bias={-0.0006}
-        shadow-mapSize-height={512}
-        shadow-mapSize-width={512}
+        shadow-mapSize-height={largeShadowMapSize}
+        shadow-mapSize-width={largeShadowMapSize}
         shadow-normalBias={0.035}
       />
       <pointLight
@@ -67,14 +71,15 @@ function ProvenanceGalleryLighting() {
   )
 }
 
-export function ProvenanceGallery() {
+export function ProvenanceGallery({ qualityLevel = 'high' }) {
   return (
     <group name="provenance-gallery">
       <ProvenanceGalleryAsset
         position={[-15, 0, 12]}
+        qualityLevel={qualityLevel}
         rotation={[0, -Math.PI / 2, 0]}
       />
-      <ProvenanceGalleryLighting />
+      <ProvenanceGalleryLighting qualityLevel={qualityLevel} />
     </group>
   )
 }

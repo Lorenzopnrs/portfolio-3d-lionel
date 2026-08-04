@@ -1,4 +1,5 @@
 import { EVALUATION_STOPS } from './cameraPath'
+import { QUALITY_OPTIONS } from '../performance/qualitySettings'
 
 export function PrototypeInterface({
   activeStopIndex,
@@ -9,7 +10,10 @@ export function PrototypeInterface({
   onReducedMotionChange,
   onMoveBackward,
   onMoveForward,
+  onQualityPreferenceChange,
   onArchiveIndexToggle,
+  qualityLevel,
+  qualityPreference,
 }) {
   const activeStop =
     activeStopIndex === null
@@ -73,6 +77,29 @@ export function PrototypeInterface({
           >
             Archives
           </button>
+
+          <span className="dock-divider" aria-hidden="true" />
+
+          <label className="quality-control">
+            <span className="sr-only">
+              Visual quality, current result {qualityLevel}
+            </span>
+            <select
+              aria-label="Visual quality"
+              disabled={interactionLocked}
+              title={`Visual quality: ${qualityLevel}`}
+              value={qualityPreference}
+              onChange={(event) =>
+                onQualityPreferenceChange(event.target.value)
+              }
+            >
+              {QUALITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <span className="dock-divider" aria-hidden="true" />
 

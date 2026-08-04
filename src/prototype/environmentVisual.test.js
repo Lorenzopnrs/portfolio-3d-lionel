@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import draco3d from 'draco3d'
 import {
   Euler,
   Matrix4,
@@ -27,6 +28,7 @@ const COMPONENT_BYTE_SIZES = {
 
 const RUNNER_JOIN_TOLERANCE = 0.035
 const FLOOR_VERTICAL_TOLERANCE = 0.06
+const dracoDecoderModule = await draco3d.createDecoderModule({})
 
 const runnerAssets = [
   {
@@ -143,6 +145,61 @@ function createAccessorReader(glb, accessorIndex) {
   }
 }
 
+function createDracoPositionReader(glb, extension) {
+  const bufferView = glb.json.bufferViews[extension.bufferView]
+  const compressedData = new Int8Array(
+    glb.binary.buffer,
+    glb.binary.byteOffset + (bufferView.byteOffset ?? 0),
+    bufferView.byteLength,
+  )
+  const decoderBuffer = new dracoDecoderModule.DecoderBuffer()
+  const decoder = new dracoDecoderModule.Decoder()
+  const mesh = new dracoDecoderModule.Mesh()
+
+  decoderBuffer.Init(compressedData, compressedData.length)
+  const status = decoder.DecodeBufferToMesh(decoderBuffer, mesh)
+  assert.equal(status.ok(), true, status.error_msg())
+  dracoDecoderModule.destroy(status)
+
+  const positionAttribute = decoder.GetAttributeByUniqueId(
+    mesh,
+    extension.attributes.POSITION,
+  )
+  const positionData = new dracoDecoderModule.DracoFloat32Array()
+  const values = new Float32Array(mesh.num_points() * 3)
+  decoder.GetAttributeFloatForAllPoints(
+    mesh,
+    positionAttribute,
+    positionData,
+  )
+
+  for (let index = 0; index < values.length; index += 1) {
+    values[index] = positionData.GetValue(index)
+  }
+
+  const count = mesh.num_points()
+  dracoDecoderModule.destroy(positionData)
+  dracoDecoderModule.destroy(mesh)
+  dracoDecoderModule.destroy(decoder)
+  dracoDecoderModule.destroy(decoderBuffer)
+
+  return {
+    count,
+    get(index, component) {
+      return values[index * 3 + component]
+    },
+  }
+}
+
+function createPositionReader(glb, primitive) {
+  const dracoExtension =
+    primitive.extensions?.KHR_draco_mesh_compression
+
+  return dracoExtension
+    ? createDracoPositionReader(glb, dracoExtension)
+    : createAccessorReader(glb, primitive.attributes.POSITION)
+}
+
 function getNodeLocalMatrix(node) {
   if (node.matrix) {
     return new Matrix4().fromArray(node.matrix)
@@ -176,10 +233,7 @@ function readMatchingGeometry({ path, placement, pattern }) {
       const vertices = []
 
       for (const primitive of glb.json.meshes[node.mesh].primitives) {
-        const positions = createAccessorReader(
-          glb,
-          primitive.attributes.POSITION,
-        )
+        const positions = createPositionReader(glb, primitive)
 
         for (let index = 0; index < positions.count; index += 1) {
           vertices.push(

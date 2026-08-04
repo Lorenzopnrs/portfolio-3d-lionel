@@ -1,9 +1,11 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useEffect, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
+import { shouldCastObjectShadow } from '../performance/qualitySettings'
 import {
   createEntranceMaterialResources,
   createRestoredRunnerMaterial,
   prepareEntranceMaterial,
+  retainPreparedAssembly,
 } from './entranceMaterialSystem'
 
 const MODEL_URL = '/models/provenance-gallery.glb'
@@ -42,44 +44,8 @@ function collectSourceMaterials(scene) {
   return sourceMaterials
 }
 
-function createSourceBackedMaterial(
-  material,
-  sourceMaterials,
-  materialCache,
-) {
-  if (materialCache.has(material.uuid)) {
-    return materialCache.get(material.uuid)
-  }
-
-  const sourceMaterial = sourceMaterials.get(material.name)
-  if (!sourceMaterial) {
-    materialCache.set(material.uuid, material)
-    return material
-  }
-
-  const sourceBackedMaterial = material.clone()
-  sourceBackedMaterial.map = sourceMaterial.map
-  sourceBackedMaterial.normalMap = sourceMaterial.normalMap
-  sourceBackedMaterial.roughnessMap = sourceMaterial.roughnessMap
-
-  if (sourceMaterial.normalScale) {
-    sourceBackedMaterial.normalScale.copy(sourceMaterial.normalScale)
-  }
-
-  materialCache.set(material.uuid, sourceBackedMaterial)
-  return sourceBackedMaterial
-}
-
 function prepareGalleryMaterial(options) {
-  const sourceBackedMaterial = createSourceBackedMaterial(
-    options.material,
-    options.sourceMaterials,
-    options.sourceBackedMaterialCache,
-  )
-  const material = prepareEntranceMaterial({
-    ...options,
-    material: sourceBackedMaterial,
-  })
+  const material = prepareEntranceMaterial(options)
 
   if (material.userData.provenanceGalleryPrepared) {
     return material
@@ -99,9 +65,12 @@ function prepareGalleryMaterial(options) {
   return material
 }
 
-function ProvenanceGalleryModel(props) {
-  const { scene } = useGLTF(MODEL_URL)
-  const { scene: entranceScene } = useGLTF(ENTRANCE_MODEL_URL)
+function ProvenanceGalleryModel({ qualityLevel = 'high', ...props }) {
+  const { scene } = useGLTF(MODEL_URL, '/draco/')
+  const { scene: entranceScene } = useGLTF(
+    ENTRANCE_MODEL_URL,
+    '/draco/',
+  )
   const runnerTexture = useTexture(RUNNER_TEXTURE_URL)
   const materialResources = useMemo(
     () => createEntranceMaterialResources(),
@@ -132,14 +101,12 @@ function ProvenanceGalleryModel(props) {
 
     const preparedAssembly = sourceAssembly.clone(true)
     const materialCache = new Map()
-    const sourceBackedMaterialCache = new Map()
 
     preparedAssembly.traverse((object) => {
       if (!object.isMesh) {
         return
       }
 
-      object.castShadow = true
       object.receiveShadow = true
 
       if (object.name === RUNNER_NAME) {
@@ -154,7 +121,6 @@ function ProvenanceGalleryModel(props) {
               materialCache,
               objectName: object.name,
               resources: materialResources,
-              sourceBackedMaterialCache,
               sourceMaterials,
             }),
           )
@@ -163,13 +129,37 @@ function ProvenanceGalleryModel(props) {
             materialCache,
             objectName: object.name,
             resources: materialResources,
-            sourceBackedMaterialCache,
             sourceMaterials,
           })
     })
 
     return preparedAssembly
   }, [materialResources, runnerMaterial, scene, sourceMaterials])
+
+  useEffect(() => {
+    if (!assembly) {
+      return
+    }
+
+    assembly.traverse((object) => {
+      if (object.isMesh) {
+        object.castShadow = shouldCastObjectShadow(
+          object.name,
+          qualityLevel,
+        )
+      }
+    })
+  }, [assembly, qualityLevel])
+
+  useEffect(
+    () =>
+      assembly
+        ? retainPreparedAssembly(assembly, [runnerMaterial], {
+            releaseSharedGeometries: true,
+          })
+        : undefined,
+    [assembly, runnerMaterial],
+  )
 
   if (!assembly) {
     throw new Error(`Missing GLB assembly: ${ASSEMBLY_NAME}`)
@@ -190,6 +180,6 @@ export function ProvenanceGalleryAsset(props) {
   )
 }
 
-useGLTF.preload(MODEL_URL)
-useGLTF.preload(ENTRANCE_MODEL_URL)
+useGLTF.preload(MODEL_URL, '/draco/')
+useGLTF.preload(ENTRANCE_MODEL_URL, '/draco/')
 useTexture.preload(RUNNER_TEXTURE_URL)

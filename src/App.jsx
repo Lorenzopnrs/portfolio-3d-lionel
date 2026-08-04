@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -6,6 +8,19 @@ import {
 } from 'react'
 import { Canvas } from '@react-three/fiber'
 import './App.css'
+import { ExperienceLoader } from './performance/ExperienceLoader'
+import { PerformanceController } from './performance/PerformanceController'
+import {
+  QUALITY_PREFERENCE_STORAGE_KEY,
+  QUALITY_SETTINGS,
+  detectInitialAutomaticQuality,
+  getEffectiveQuality,
+  normalizeQualityPreference,
+} from './performance/qualitySettings'
+import {
+  INITIAL_ROUTE_SECTION_VISIBILITY,
+  resolveRouteSectionVisibility,
+} from './performance/sectionVisibility'
 import { EVALUATION_STOPS, INITIAL_PROGRESS } from './prototype/cameraPath'
 import {
   applyDirectionalInput,
@@ -23,9 +38,6 @@ import {
   socialContent,
   socialLinks,
 } from './content/portfolioContent'
-import { AboutDetailOverlay } from './final-route/AboutDetailOverlay'
-import { AudioStoryDetailOverlay } from './final-route/AudioStoryDetailOverlay'
-import { BookDetailOverlay } from './final-route/BookDetailOverlay'
 import { ContextualContentControls } from './final-route/ContextualContentControls'
 import { FinalPrototypeEnvironment } from './final-route/FinalPrototypeEnvironment'
 import {
@@ -34,7 +46,44 @@ import {
   isProjectSurfaceInteractionEnabled,
   isSocialSurfaceInteractionEnabled,
 } from './final-route/interactionState'
-import { SocialDetailOverlay } from './final-route/SocialDetailOverlay'
+const AboutDetailOverlay = lazy(() =>
+  import('./final-route/AboutDetailOverlay').then((module) => ({
+    default: module.AboutDetailOverlay,
+  })),
+)
+const AudioStoryDetailOverlay = lazy(() =>
+  import('./final-route/AudioStoryDetailOverlay').then((module) => ({
+    default: module.AudioStoryDetailOverlay,
+  })),
+)
+const BookDetailOverlay = lazy(() =>
+  import('./final-route/BookDetailOverlay').then((module) => ({
+    default: module.BookDetailOverlay,
+  })),
+)
+const SocialDetailOverlay = lazy(() =>
+  import('./final-route/SocialDetailOverlay').then((module) => ({
+    default: module.SocialDetailOverlay,
+  })),
+)
+
+function getAutomaticQualityRecommendation() {
+  return detectInitialAutomaticQuality({
+    deviceMemory: navigator.deviceMemory,
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    viewportWidth: window.innerWidth,
+  })
+}
+
+function getStoredQualityPreference() {
+  try {
+    return normalizeQualityPreference(
+      window.localStorage.getItem(QUALITY_PREFERENCE_STORAGE_KEY),
+    )
+  } catch {
+    return 'automatic'
+  }
+}
 
 function getContentRecord(contentType, contentId) {
   if (contentType === 'about' && contentId === aboutContent.id) {
@@ -79,16 +128,30 @@ function getContentTriggerSelector(content) {
 function App() {
   const movementRef = useRef(createMovementState())
   const contentTriggerRef = useRef(null)
+  const entranceMovementInitializedRef = useRef(false)
+  const [performanceDebugEnabled] = useState(() =>
+    new URLSearchParams(window.location.search).has('perf'),
+  )
   const [reducedMotionEnabled, setReducedMotionEnabled] = useState(() =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
   const [telemetry, setTelemetry] = useState({
     progress: INITIAL_PROGRESS,
     activeStopIndex: null,
+    sectionVisibility: INITIAL_ROUTE_SECTION_VISIBILITY,
   })
   const [announcement, setAnnouncement] = useState('')
   const [activeContent, setActiveContent] = useState(null)
   const [archiveIndexOpen, setArchiveIndexOpen] = useState(false)
+  const [entranceReady, setEntranceReady] = useState(false)
+  const [documentVisible, setDocumentVisible] = useState(!document.hidden)
+  const [qualityPreference, setQualityPreference] = useState(
+    getStoredQualityPreference,
+  )
+  const [automaticQuality, setAutomaticQuality] = useState(
+    getAutomaticQualityRecommendation,
+  )
+  const [performanceMetrics, setPerformanceMetrics] = useState(null)
 
   usePathControls(movementRef)
 
@@ -114,8 +177,28 @@ function App() {
     setReducedMotion(movementRef.current, reducedMotionEnabled)
   }, [reducedMotionEnabled])
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setDocumentVisible(!document.hidden)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityChange,
+      )
+    }
+  }, [])
+
   const handleTelemetry = useCallback((nextTelemetry) => {
-    setTelemetry(nextTelemetry)
+    setTelemetry((currentTelemetry) => ({
+      ...nextTelemetry,
+      sectionVisibility: resolveRouteSectionVisibility(
+        currentTelemetry.sectionVisibility,
+        nextTelemetry.progress,
+      ),
+    }))
     const activeStop =
       nextTelemetry.activeStopIndex === null
         ? null
@@ -126,6 +209,28 @@ function App() {
 
   const handleMove = useCallback((direction) => {
     applyDirectionalInput(movementRef.current, direction)
+  }, [])
+
+  const handleEntranceReady = useCallback(() => {
+    setEntranceReady(true)
+  }, [])
+
+  const handleQualityPreferenceChange = useCallback((nextPreference) => {
+    const normalizedPreference = normalizeQualityPreference(nextPreference)
+    setQualityPreference(normalizedPreference)
+
+    if (normalizedPreference === 'automatic') {
+      setAutomaticQuality(getAutomaticQualityRecommendation())
+    }
+
+    try {
+      window.localStorage.setItem(
+        QUALITY_PREFERENCE_STORAGE_KEY,
+        normalizedPreference,
+      )
+    } catch {
+      return
+    }
   }, [])
 
   const handleContentOpen = useCallback(
@@ -222,13 +327,40 @@ function App() {
   const socialSurfaceInteractionEnabled =
     isSocialSurfaceInteractionEnabled(telemetry.progress)
   const interactionLocked = activeContent !== null
+  const controlsLocked = interactionLocked || !entranceReady
+  const renderingPaused = interactionLocked || !documentVisible
+  const qualityLevel = getEffectiveQuality(
+    qualityPreference,
+    automaticQuality,
+  )
+  const qualitySettings = QUALITY_SETTINGS[qualityLevel]
+
+  useEffect(() => {
+    setTravelLocked(movementRef.current, controlsLocked)
+  }, [controlsLocked])
+
+  useEffect(() => {
+    if (!entranceReady || entranceMovementInitializedRef.current) {
+      return
+    }
+
+    entranceMovementInitializedRef.current = true
+    setTravelLocked(movementRef.current, false)
+
+    if (reducedMotionEnabled) {
+      setReducedMotion(movementRef.current, true)
+    }
+  }, [entranceReady, reducedMotionEnabled])
 
   return (
-    <main className="prototype-shell">
+    <main
+      className={`prototype-shell${renderingPaused ? ' is-render-paused' : ''}`}
+      aria-busy={!entranceReady}
+    >
       <div
         className="experience-layer"
-        inert={interactionLocked}
-        aria-hidden={interactionLocked}
+        inert={controlsLocked}
+        aria-hidden={controlsLocked}
       >
         <div className="prototype-scene">
           <Canvas
@@ -238,7 +370,8 @@ function App() {
               near: 0.1,
               far: 120,
             }}
-            dpr={[1, 1.5]}
+            dpr={qualitySettings.dpr}
+            frameloop={renderingPaused ? 'demand' : 'always'}
             gl={{ antialias: true, powerPreference: 'high-performance' }}
           >
             <color attach="background" args={['#0d0c0a']} />
@@ -252,16 +385,32 @@ function App() {
             <FinalPrototypeEnvironment
               audioInteractionEnabled={audioSurfaceInteractionEnabled}
               bookInteractionEnabled={bookSurfaceInteractionEnabled}
+              entranceReady={entranceReady}
               onAboutOpen={handleAboutOpen}
               onAudioStorySelect={handleAudioStorySelect}
               onBookSelect={handleBookSelect}
+              onEntranceReady={handleEntranceReady}
               onSocialOpen={handleSocialOpen}
+              progress={telemetry.progress}
+              qualityLevel={qualityLevel}
               reducedMotionEnabled={reducedMotionEnabled}
+              sectionVisibility={telemetry.sectionVisibility}
               socialInteractionEnabled={socialSurfaceInteractionEnabled}
             />
             <PathCamera
               movementRef={movementRef}
               onTelemetry={handleTelemetry}
+            />
+            <PerformanceController
+              interactionLocked={controlsLocked}
+              onAutomaticQualityChange={setAutomaticQuality}
+              onMetrics={
+                performanceDebugEnabled
+                  ? setPerformanceMetrics
+                  : undefined
+              }
+              qualityLevel={qualityLevel}
+              qualityPreference={qualityPreference}
             />
           </Canvas>
         </div>
@@ -269,21 +418,24 @@ function App() {
         <PrototypeInterface
           activeStopIndex={telemetry.activeStopIndex}
           archiveIndexOpen={archiveIndexOpen}
-          interactionLocked={interactionLocked}
+          interactionLocked={controlsLocked}
           progress={telemetry.progress}
+          qualityLevel={qualityLevel}
+          qualityPreference={qualityPreference}
           reducedMotionEnabled={reducedMotionEnabled}
           onArchiveIndexToggle={() =>
             setArchiveIndexOpen((isOpen) => !isOpen)
           }
           onMoveBackward={() => handleMove(-1)}
           onMoveForward={() => handleMove(1)}
+          onQualityPreferenceChange={handleQualityPreferenceChange}
           onReducedMotionChange={setReducedMotionEnabled}
         />
 
         <ContextualContentControls
           activeStopId={activeStopId}
           archiveIndexOpen={archiveIndexOpen}
-          interactionLocked={interactionLocked}
+          interactionLocked={controlsLocked}
           onAudioStorySelect={handleAudioStorySelect}
           onBookSelect={handleBookSelect}
           onSocialOpen={handleSocialOpen}
@@ -341,34 +493,54 @@ function App() {
         </section>
       </div>
 
-      {aboutOpen && (
-        <AboutDetailOverlay
-          about={aboutContent}
-          onClose={handleContentClose}
-        />
+      <ExperienceLoader entranceReady={entranceReady} />
+
+      {performanceDebugEnabled && performanceMetrics && (
+        <output id="runtime-performance" className="sr-only">
+          {JSON.stringify({
+            ...performanceMetrics,
+            qualityLevel,
+            qualityPreference,
+          })}
+        </output>
       )}
 
-      {activeBook && (
-        <BookDetailOverlay
-          book={activeBook}
-          onClose={handleContentClose}
-        />
-      )}
+      <Suspense
+        fallback={
+          <div className="content-loading-fallback" role="status">
+            Ouverture de l’archive…
+          </div>
+        }
+      >
+        {aboutOpen && (
+          <AboutDetailOverlay
+            about={aboutContent}
+            onClose={handleContentClose}
+          />
+        )}
 
-      {activeAudioStory && (
-        <AudioStoryDetailOverlay
-          story={activeAudioStory}
-          onClose={handleContentClose}
-        />
-      )}
+        {activeBook && (
+          <BookDetailOverlay
+            book={activeBook}
+            onClose={handleContentClose}
+          />
+        )}
 
-      {socialOpen && (
-        <SocialDetailOverlay
-          content={socialContent}
-          links={socialLinks}
-          onClose={handleContentClose}
-        />
-      )}
+        {activeAudioStory && (
+          <AudioStoryDetailOverlay
+            story={activeAudioStory}
+            onClose={handleContentClose}
+          />
+        )}
+
+        {socialOpen && (
+          <SocialDetailOverlay
+            content={socialContent}
+            links={socialLinks}
+            onClose={handleContentClose}
+          />
+        )}
+      </Suspense>
     </main>
   )
 }

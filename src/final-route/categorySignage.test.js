@@ -53,7 +53,7 @@ test('category markers use suspended wooden signage without beige posts', () => 
   const paletteSource = readFileSync(palettePath, 'utf8')
 
   assert.match(signageSource, /CATEGORY_SIGN_URL/)
-  assert.match(runtimeAssetPathsSource, /elements\/pancarte\.png/)
+  assert.match(runtimeAssetPathsSource, /elements\/pancarte\.webp/)
   assert.match(signageSource, /torusGeometry/)
   assert.match(finalEnvironmentSource, /CategorySignage/)
   assert.match(prototypeEnvironmentSource, /CategorySignage/)
@@ -83,7 +83,7 @@ test('About uses a responsive professional profile panel without papyrus', () =>
   assert.match(archiveDialog, /is-profile/)
   assert.ok(profileRule)
   assert.match(profileRule, /background:/)
-  assert.doesNotMatch(profileRule, /papier\.png/)
+  assert.doesNotMatch(profileRule, /papier\.webp/)
   assert.match(
     stylesheet,
     /@media \(max-width: 640px\)[\s\S]*?\.archive-dialog\.is-profile/,

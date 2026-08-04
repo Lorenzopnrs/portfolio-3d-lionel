@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo } from 'react'
+import { Suspense, useCallback, useEffect, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
 import {
   CanvasTexture,
@@ -10,6 +10,7 @@ import {
   SRGBColorSpace,
 } from 'three'
 import { useSafeTexture } from '../assets/useSafeTexture.js'
+import { shouldCastObjectShadow } from '../performance/qualitySettings'
 import {
   audioStories,
   books,
@@ -20,6 +21,8 @@ import {
   createEntranceMaterialResources,
   createRestoredRunnerMaterial,
   prepareEntranceMaterial,
+  retainGeneratedMaterials,
+  retainPreparedAssembly,
 } from '../vertical-slice/entranceMaterialSystem'
 
 const MODEL_URL = '/models/final-route-asset-library.glb'
@@ -72,57 +75,6 @@ function collectSourceMaterials(scene) {
   })
 
   return sourceMaterials
-}
-
-function createSourceBackedMaterial(
-  material,
-  sourceMaterials,
-  materialCache,
-) {
-  if (materialCache.has(material.uuid)) {
-    return materialCache.get(material.uuid)
-  }
-
-  const sourceMaterial = sourceMaterials.get(material.name)
-  if (!sourceMaterial) {
-    materialCache.set(material.uuid, material)
-    return material
-  }
-
-  const sourceBackedMaterial = material.clone()
-  sourceBackedMaterial.map = sourceMaterial.map
-  sourceBackedMaterial.normalMap = sourceMaterial.normalMap
-  sourceBackedMaterial.roughnessMap = sourceMaterial.roughnessMap
-
-  if (sourceMaterial.normalScale) {
-    sourceBackedMaterial.normalScale.copy(sourceMaterial.normalScale)
-  }
-
-  materialCache.set(material.uuid, sourceBackedMaterial)
-  return sourceBackedMaterial
-}
-
-function prepareFinalRouteMaterial({
-  material,
-  materialCache,
-  objectName,
-  resources,
-  sourceBackedMaterialCache,
-  sourceMaterials,
-}) {
-  const sourceBackedMaterial = createSourceBackedMaterial(
-    material,
-    sourceMaterials,
-    sourceBackedMaterialCache,
-  )
-
-  return prepareEntranceMaterial({
-    material: sourceBackedMaterial,
-    materialCache,
-    objectName,
-    resources,
-    sourceMaterials,
-  })
 }
 
 function wrapText(
@@ -466,11 +418,15 @@ function FinalRouteModel({
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
+  qualityLevel = 'high',
   socialInteractionEnabled = false,
   ...props
 }) {
-  const { scene } = useGLTF(MODEL_URL)
-  const { scene: entranceScene } = useGLTF(ENTRANCE_MODEL_URL)
+  const { scene } = useGLTF(MODEL_URL, '/draco/')
+  const { scene: entranceScene } = useGLTF(
+    ENTRANCE_MODEL_URL,
+    '/draco/',
+  )
   const runnerTexture = useTexture(RUNNER_TEXTURE_URL)
   const firstBookCoverTexture = useSafeTexture(
     BOOK_COVER_TEXTURE_URLS[0],
@@ -547,14 +503,12 @@ function FinalRouteModel({
 
     const preparedAssembly = sourceAssembly.clone(true)
     const materialCache = new Map()
-    const sourceBackedMaterialCache = new Map()
 
     preparedAssembly.traverse((object) => {
       if (!object.isMesh) {
         return
       }
 
-      object.castShadow = true
       object.receiveShadow = true
 
       if (object.name === RUNNER_NAME) {
@@ -567,6 +521,7 @@ function FinalRouteModel({
         const surfaceIndex = Number(projectMatch[1]) - 1
 
         object.geometry = createBookSurfaceGeometry(surfaceIndex)
+        object.userData.performanceOwnedGeometry = true
         object.material =
           informationMaterials.bookMaterials[surfaceIndex]
         object.castShadow = false
@@ -596,21 +551,19 @@ function FinalRouteModel({
 
       object.material = Array.isArray(object.material)
         ? object.material.map((material) =>
-            prepareFinalRouteMaterial({
+            prepareEntranceMaterial({
               material,
               materialCache,
               objectName: object.name,
               resources: materialResources,
-              sourceBackedMaterialCache,
               sourceMaterials,
             }),
           )
-        : prepareFinalRouteMaterial({
+        : prepareEntranceMaterial({
             material: object.material,
             materialCache,
             objectName: object.name,
             resources: materialResources,
-            sourceBackedMaterialCache,
             sourceMaterials,
           })
     })
@@ -691,6 +644,49 @@ function FinalRouteModel({
     }
   }, [])
 
+  useEffect(() => {
+    if (!assembly) {
+      return
+    }
+
+    assembly.traverse((object) => {
+      if (!object.isMesh) {
+        return
+      }
+
+      object.castShadow = PROJECT_SURFACE_PATTERN.test(object.name)
+        ? false
+        : shouldCastObjectShadow(object.name, qualityLevel)
+    })
+  }, [assembly, qualityLevel])
+
+  useEffect(() => {
+    const materials = [
+      ...informationMaterials.audioMaterials,
+      ...informationMaterials.bookMaterials,
+      informationMaterials.socialMaterial,
+    ]
+
+    return retainGeneratedMaterials(materials)
+  }, [informationMaterials])
+
+  useEffect(
+    () =>
+      assembly
+        ? retainPreparedAssembly(
+            assembly,
+            [
+              runnerMaterial,
+              ...informationMaterials.audioMaterials,
+              ...informationMaterials.bookMaterials,
+              informationMaterials.socialMaterial,
+            ],
+            { releaseSharedGeometries: true },
+          )
+        : undefined,
+    [assembly, informationMaterials, runnerMaterial],
+  )
+
   if (!assembly) {
     throw new Error(`Missing GLB assembly: ${ASSEMBLY_NAME}`)
   }
@@ -717,6 +713,6 @@ export function FinalRouteAsset(props) {
   )
 }
 
-useGLTF.preload(MODEL_URL)
-useGLTF.preload(ENTRANCE_MODEL_URL)
+useGLTF.preload(MODEL_URL, '/draco/')
+useGLTF.preload(ENTRANCE_MODEL_URL, '/draco/')
 useTexture.preload(RUNNER_TEXTURE_URL)

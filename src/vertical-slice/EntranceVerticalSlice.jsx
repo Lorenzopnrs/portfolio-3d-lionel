@@ -1,7 +1,10 @@
 import { EntranceAssetLibrary } from './EntranceAssetLibrary'
 import { AboutPortal } from './AboutPortal'
+import { getShadowMapSize } from '../performance/qualitySettings'
 
-function EntranceLighting() {
+function EntranceLighting({ qualityLevel }) {
+  const shadowMapSize = getShadowMapSize(512, qualityLevel)
+
   return (
     <>
       <pointLight
@@ -12,8 +15,8 @@ function EntranceLighting() {
         intensity={29.1}
         position={[-18, 3.25, 25]}
         shadow-bias={-0.0006}
-        shadow-mapSize-height={512}
-        shadow-mapSize-width={512}
+        shadow-mapSize-height={shadowMapSize}
+        shadow-mapSize-width={shadowMapSize}
         shadow-normalBias={0.035}
       />
       <pointLight
@@ -71,17 +74,25 @@ function EntranceLighting() {
 }
 
 export function EntranceVerticalSlice({
+  onReady,
   onAboutOpen,
+  portalAnimationEnabled = true,
+  qualityLevel = 'high',
   reducedMotionEnabled,
 }) {
   return (
     <group name="entrance-vertical-slice">
-      <EntranceAssetLibrary position={[-18, 0, 30]} />
+      <EntranceAssetLibrary
+        onReady={onReady}
+        position={[-18, 0, 30]}
+        qualityLevel={qualityLevel}
+      />
       <AboutPortal
+        animationEnabled={portalAnimationEnabled}
         onActivate={onAboutOpen}
         reducedMotionEnabled={reducedMotionEnabled}
       />
-      <EntranceLighting />
+      <EntranceLighting qualityLevel={qualityLevel} />
     </group>
   )
 }

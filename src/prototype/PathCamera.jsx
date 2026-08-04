@@ -83,7 +83,7 @@ export function PathCamera({ movementRef, onTelemetry }) {
     camera.up.copy(WORLD_UP)
 
     const progressChanged =
-      Math.abs(movement.progress - lastReport.current.progress) >= 0.003
+      Math.abs(movement.progress - lastReport.current.progress) >= 0.005
     const stopChanged =
       movement.activeStopIndex !== lastReport.current.activeStopIndex
 

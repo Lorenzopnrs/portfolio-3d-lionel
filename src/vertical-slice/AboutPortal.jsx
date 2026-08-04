@@ -375,6 +375,7 @@ function PortalTitle({ onActivate, onPointerOut, onPointerOver }) {
 }
 
 function PortalSurface({
+  animationEnabled,
   geometry,
   onActivate,
   onPointerOut,
@@ -393,7 +394,7 @@ function PortalSurface({
   )
 
   useFrame((_, delta) => {
-    if (!materialRef.current) {
+    if (!animationEnabled || !materialRef.current) {
       return
     }
 
@@ -428,6 +429,7 @@ function PortalSurface({
 }
 
 export function AboutPortal({
+  animationEnabled = true,
   onActivate,
   reducedMotionEnabled,
 }) {
@@ -484,6 +486,7 @@ export function AboutPortal({
       position={ABOUT_PORTAL_POSITION}
     >
       <PortalSurface
+        animationEnabled={animationEnabled}
         geometry={geometries.surface}
         onActivate={onActivate}
         onPointerOut={handlePointerOut}

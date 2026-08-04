@@ -1,22 +1,26 @@
 import { FinalRouteAsset } from './FinalRouteAsset'
+import { getShadowMapSize } from '../performance/qualitySettings'
 import {
   FINAL_ROUTE_POSITION,
   FINAL_ROUTE_ROTATION,
 } from './finalRoutePlacement'
 
-function FinalRouteLighting() {
+function FinalRouteLighting({ qualityLevel }) {
+  const smallShadowMapSize = getShadowMapSize(256, qualityLevel)
+  const largeShadowMapSize = getShadowMapSize(512, qualityLevel)
+
   return (
     <>
       <pointLight
-        castShadow
+        castShadow={qualityLevel !== 'low'}
         color="#f7a052"
         decay={2}
         distance={5.3}
         intensity={50.6}
         position={[-6.45, 3.4, 12]}
         shadow-bias={-0.0006}
-        shadow-mapSize-height={256}
-        shadow-mapSize-width={256}
+        shadow-mapSize-height={smallShadowMapSize}
+        shadow-mapSize-width={smallShadowMapSize}
         shadow-normalBias={0.04}
       />
       <pointLight
@@ -27,8 +31,8 @@ function FinalRouteLighting() {
         intensity={66.7}
         position={[-3.8, 3.45, 12]}
         shadow-bias={-0.0006}
-        shadow-mapSize-height={512}
-        shadow-mapSize-width={512}
+        shadow-mapSize-height={largeShadowMapSize}
+        shadow-mapSize-width={largeShadowMapSize}
         shadow-normalBias={0.035}
       />
       <pointLight
@@ -54,15 +58,15 @@ function FinalRouteLighting() {
         width={3}
       />
       <pointLight
-        castShadow
+        castShadow={qualityLevel !== 'low'}
         color="#f79a4d"
         decay={2}
         distance={5}
         intensity={38}
         position={[4.15, 2.25, 5.3]}
         shadow-bias={-0.0006}
-        shadow-mapSize-height={256}
-        shadow-mapSize-width={256}
+        shadow-mapSize-height={smallShadowMapSize}
+        shadow-mapSize-width={smallShadowMapSize}
         shadow-normalBias={0.04}
       />
       <pointLight
@@ -104,6 +108,7 @@ export function FinalRouteEnvironment({
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
+  qualityLevel = 'high',
   socialInteractionEnabled,
 }) {
   return (
@@ -115,10 +120,11 @@ export function FinalRouteEnvironment({
         onBookSelect={onBookSelect}
         onSocialOpen={onSocialOpen}
         position={FINAL_ROUTE_POSITION}
+        qualityLevel={qualityLevel}
         rotation={FINAL_ROUTE_ROTATION}
         socialInteractionEnabled={socialInteractionEnabled}
       />
-      <FinalRouteLighting />
+      <FinalRouteLighting qualityLevel={qualityLevel} />
     </group>
   )
 }

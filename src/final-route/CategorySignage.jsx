@@ -33,6 +33,9 @@ const SIGN_PLANKS = Object.freeze([
   Object.freeze({ y: 0, height: 0.3, widthScale: 1, tilt: -0.006 }),
   Object.freeze({ y: -0.26, height: 0.28, widthScale: 0.94, tilt: 0.009 }),
 ])
+const CATEGORY_STOPS = EVALUATION_STOPS.filter(
+  (stop) => stop.id !== 'entrance',
+)
 
 function createWoodTexture(referenceTexture) {
   const sourceImage = referenceTexture.image
@@ -70,7 +73,7 @@ function createWoodTexture(referenceTexture) {
   return texture
 }
 
-function SuspensionChain({ ironMaterial, x, z }) {
+function SuspensionChain({ castShadow, ironMaterial, x, z }) {
   const boardTop = SIGN_CENTER_Y + 0.48
   const availableHeight = SIGN_ANCHOR_Y - boardTop
   const spacing = availableHeight / (CHAIN_LINK_COUNT - 1)
@@ -78,7 +81,7 @@ function SuspensionChain({ ironMaterial, x, z }) {
   return (
     <group>
       <mesh
-        castShadow
+        castShadow={castShadow}
         material={ironMaterial}
         position={[x, SIGN_ANCHOR_Y + 0.08, z]}
       >
@@ -87,7 +90,7 @@ function SuspensionChain({ ironMaterial, x, z }) {
       {Array.from({ length: CHAIN_LINK_COUNT }, (_, index) => (
         <mesh
           key={index}
-          castShadow
+          castShadow={castShadow}
           material={ironMaterial}
           position={[x, boardTop + spacing * index, z]}
           rotation={
@@ -126,32 +129,16 @@ function SignFace({ label, position, reducedMotionEnabled }) {
 
 function SuspendedCategorySign({
   id,
+  isVisible,
   label,
-  progress,
+  placement,
+  qualityLevel,
   reducedMotionEnabled,
   woodMaterial,
   ironMaterial,
 }) {
-  const placement = getPathPlacement(progress)
-  const signPosition = useMemo(
-    () => new Vector3(...placement.position),
-    [placement.position],
-  )
-  const visibilityRef = useRef(false)
-  const [isVisible, setIsVisible] = useState(false)
   const width = SIGN_WIDTHS[id]
   const chainOffset = Math.min(0.88, width * 0.32)
-
-  useFrame(({ camera }) => {
-    const nextVisibility =
-      camera.position.distanceToSquared(signPosition) <=
-      SIGN_VISIBILITY_DISTANCE_SQUARED
-
-    if (nextVisibility !== visibilityRef.current) {
-      visibilityRef.current = nextVisibility
-      setIsVisible(nextVisibility)
-    }
-  })
 
   return (
     <group
@@ -163,7 +150,7 @@ function SuspendedCategorySign({
       {SIGN_PLANKS.map((plank, index) => (
         <mesh
           key={index}
-          castShadow
+          castShadow={qualityLevel !== 'low'}
           receiveShadow
           material={woodMaterial}
           position={[0, SIGN_CENTER_Y + plank.y, SIGN_CENTER_Z]}
@@ -178,6 +165,7 @@ function SuspendedCategorySign({
       {[-chainOffset, chainOffset].map((x) => (
         <SuspensionChain
           key={x}
+          castShadow={qualityLevel === 'high'}
           ironMaterial={ironMaterial}
           x={x}
           z={SIGN_CENTER_Z}
@@ -226,7 +214,10 @@ function SuspendedCategorySign({
   )
 }
 
-export function CategorySignage({ reducedMotionEnabled = false }) {
+export function CategorySignage({
+  qualityLevel = 'high',
+  reducedMotionEnabled = false,
+}) {
   const referenceTexture = useSafeTexture(CATEGORY_SIGN_URL, {
     fallbackColor: '#5b351c',
     fallbackHeight: 512,
@@ -256,9 +247,42 @@ export function CategorySignage({ reducedMotionEnabled = false }) {
       }),
     [],
   )
-  const categoryStops = EVALUATION_STOPS.filter(
-    (stop) => stop.id !== 'entrance',
+  const signPlacements = useMemo(
+    () =>
+      CATEGORY_STOPS.map((stop) => {
+        const placement = getPathPlacement(stop.progress)
+        return {
+          ...stop,
+          placement,
+          position: new Vector3(...placement.position),
+        }
+      }),
+    [],
   )
+  const visibilityRef = useRef(
+    signPlacements.map(() => false),
+  )
+  const [visibleSigns, setVisibleSigns] = useState(
+    () => signPlacements.map(() => false),
+  )
+
+  useFrame(({ camera }) => {
+    const nextVisibility = signPlacements.map(
+      (sign) =>
+        camera.position.distanceToSquared(sign.position) <=
+        SIGN_VISIBILITY_DISTANCE_SQUARED,
+    )
+
+    if (
+      nextVisibility.some(
+        (isVisible, index) =>
+          isVisible !== visibilityRef.current[index],
+      )
+    ) {
+      visibilityRef.current = nextVisibility
+      setVisibleSigns(nextVisibility)
+    }
+  })
 
   useEffect(
     () => () => {
@@ -269,11 +293,13 @@ export function CategorySignage({ reducedMotionEnabled = false }) {
     [ironMaterial, woodMaterial, woodTexture],
   )
 
-  return categoryStops.map((stop) => (
+  return signPlacements.map((sign, index) => (
     <SuspendedCategorySign
-      key={stop.id}
-      {...stop}
+      key={sign.id}
+      {...sign}
       ironMaterial={ironMaterial}
+      isVisible={visibleSigns[index]}
+      qualityLevel={qualityLevel}
       reducedMotionEnabled={reducedMotionEnabled}
       woodMaterial={woodMaterial}
     />

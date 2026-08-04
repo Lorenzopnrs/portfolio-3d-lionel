@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import draco3d from 'draco3d'
 import {
   Box3,
   Euler,
@@ -33,6 +34,7 @@ const STRONG_IMPULSE_PROGRESS_STEP =
 const PORTRAIT_HALF_FIELD_OF_VIEW = (15 * Math.PI) / 180
 const WORLD_UP = new Vector3(0, 1, 0)
 const CAMERA_FORWARD = new Vector3(0, 0, -1)
+const dracoDecoderModule = await draco3d.createDecoderModule({})
 const glbPath = fileURLToPath(
   new URL(
     '../../public/models/final-route-asset-library.glb',
@@ -168,6 +170,18 @@ function createPrimitiveGeometry(
   nodeName,
 ) {
   assert.equal(primitive.mode ?? 4, 4)
+  const dracoExtension =
+    primitive.extensions?.KHR_draco_mesh_compression
+
+  if (dracoExtension) {
+    return createDracoPrimitiveGeometry(
+      glb,
+      dracoExtension,
+      worldMatrix,
+      nodeName,
+    )
+  }
+
   const positionReader = createAccessorReader(
     glb,
     primitive.attributes.POSITION,
@@ -193,6 +207,73 @@ function createPrimitiveGeometry(
   for (let index = 0; index < indexReader.count; index += 1) {
     indices[index] = indexReader.get(index)
   }
+
+  return { box, indices, nodeName, positions }
+}
+
+function createDracoPrimitiveGeometry(
+  glb,
+  extension,
+  worldMatrix,
+  nodeName,
+) {
+  const bufferView = glb.json.bufferViews[extension.bufferView]
+  const byteOffset = bufferView.byteOffset ?? 0
+  const compressedData = new Int8Array(
+    glb.binary.buffer,
+    glb.binary.byteOffset + byteOffset,
+    bufferView.byteLength,
+  )
+  const decoderBuffer = new dracoDecoderModule.DecoderBuffer()
+  const decoder = new dracoDecoderModule.Decoder()
+  const mesh = new dracoDecoderModule.Mesh()
+
+  decoderBuffer.Init(compressedData, compressedData.length)
+  const status = decoder.DecodeBufferToMesh(decoderBuffer, mesh)
+  assert.equal(status.ok(), true, status.error_msg())
+  dracoDecoderModule.destroy(status)
+
+  const positionAttribute = decoder.GetAttributeByUniqueId(
+    mesh,
+    extension.attributes.POSITION,
+  )
+  const positionData = new dracoDecoderModule.DracoFloat32Array()
+  const faceData = new dracoDecoderModule.DracoInt32Array()
+  const positions = new Float32Array(mesh.num_points() * 3)
+  const indices = new Uint32Array(mesh.num_faces() * 3)
+  const point = new Vector3()
+  const box = new Box3()
+
+  decoder.GetAttributeFloatForAllPoints(
+    mesh,
+    positionAttribute,
+    positionData,
+  )
+
+  for (let index = 0; index < mesh.num_points(); index += 1) {
+    point
+      .set(
+        positionData.GetValue(index * 3),
+        positionData.GetValue(index * 3 + 1),
+        positionData.GetValue(index * 3 + 2),
+      )
+      .applyMatrix4(worldMatrix)
+    point.toArray(positions, index * 3)
+    box.expandByPoint(point)
+  }
+
+  for (let faceIndex = 0; faceIndex < mesh.num_faces(); faceIndex += 1) {
+    decoder.GetFaceFromMesh(mesh, faceIndex, faceData)
+    indices[faceIndex * 3] = faceData.GetValue(0)
+    indices[faceIndex * 3 + 1] = faceData.GetValue(1)
+    indices[faceIndex * 3 + 2] = faceData.GetValue(2)
+  }
+
+  dracoDecoderModule.destroy(faceData)
+  dracoDecoderModule.destroy(positionData)
+  dracoDecoderModule.destroy(mesh)
+  dracoDecoderModule.destroy(decoder)
+  dracoDecoderModule.destroy(decoderBuffer)
 
   return { box, indices, nodeName, positions }
 }

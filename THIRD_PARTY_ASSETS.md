@@ -31,3 +31,12 @@ Poly Haven publishes these assets under the
 | Quatrefoil Jacquard Fabric | colormass and Rico Cilliers | [Poly Haven](https://polyhaven.com/a/quatrefoil_jacquard_fabric) | [CC0](https://polyhaven.com/license) | `quatrefoil_jacquard_fabric_nor_gl_1k.jpg`; worn burgundy runners |
 
 No HDRI, complete environment kit or finished prop model is included.
+
+## Draco Decoder
+
+The local Draco decoder files under `public/draco/` are copied from the
+installed `three` package so compressed GLB files can be decoded without a
+runtime CDN request. Three.js is maintained by mrdoob and contributors and is
+distributed under the [MIT license](https://github.com/mrdoob/three.js/blob/dev/LICENSE).
+The local files are `draco_decoder.js`, `draco_decoder.wasm` and
+`draco_wasm_wrapper.js`.

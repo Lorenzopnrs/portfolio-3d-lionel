@@ -9,4 +9,4 @@ export const BOOK_COVER_URLS = Object.freeze({
 })
 
 export const CATEGORY_SIGN_URL =
-  '/categories/elements/pancarte.png'
+  '/categories/elements/pancarte.webp'

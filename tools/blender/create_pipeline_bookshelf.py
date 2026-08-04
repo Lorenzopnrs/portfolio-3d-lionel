@@ -5,7 +5,13 @@ import bpy
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BLEND_PATH = PROJECT_ROOT / "assets" / "blender" / "pipeline_bookshelf.blend"
-GLB_PATH = PROJECT_ROOT / "public" / "models" / "pipeline-bookshelf.glb"
+GLB_PATH = (
+    PROJECT_ROOT
+    / "assets"
+    / "blender"
+    / "exports"
+    / "pipeline-bookshelf.glb"
+)
 
 
 def clear_scene():
@@ -244,6 +250,11 @@ def main():
     bpy.ops.export_scene.gltf(
         filepath=str(GLB_PATH),
         export_format="GLB",
+        export_draco_mesh_compression_enable=True,
+        export_draco_mesh_compression_level=6,
+        export_draco_position_quantization=14,
+        export_draco_normal_quantization=10,
+        export_draco_texcoord_quantization=12,
         export_yup=True,
     )
 

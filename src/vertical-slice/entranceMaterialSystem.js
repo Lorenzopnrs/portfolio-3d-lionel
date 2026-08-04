@@ -13,6 +13,11 @@ const PREVIOUS_RUNNER_REFERENCE_LENGTH = 7.4
 const RUNNER_MODULE_SPACING = 4.5
 const MATERIAL_VARIATION = [0.9, 0.97, 1.03, 1.08]
 const ROUGHNESS_VARIATION = [0.025, -0.02, 0.04, -0.01]
+let sharedMaterialResources = null
+const runnerMaterialCache = new WeakMap()
+const retainedAssemblies = new WeakMap()
+const retainedGeneratedMaterials = new WeakMap()
+const retainedSharedGeometries = new WeakMap()
 
 const MATERIAL_PROFILES = {
   AgedPaper: {
@@ -274,12 +279,16 @@ function createTexturePair(seed, baseValue, variation, repeat) {
 }
 
 export function createEntranceMaterialResources() {
+  if (sharedMaterialResources) {
+    return sharedMaterialResources
+  }
+
   const paper = createPaperTextures()
   const surface = createTexturePair(1051, 205, 52, [2.4, 2.4])
   const foliage = createTexturePair(1237, 192, 74, [1.7, 1.7])
   const leather = createTexturePair(1321, 206, 48, [1.45, 1.45])
 
-  return {
+  sharedMaterialResources = {
     foliageColor: foliage.color,
     foliageData: foliage.data,
     leatherColor: leather.color,
@@ -296,6 +305,136 @@ export function createEntranceMaterialResources() {
     ),
     surfaceColor: surface.color,
     surfaceData: surface.data,
+  }
+
+  return sharedMaterialResources
+}
+
+function getMaterials(object) {
+  if (!object.material) {
+    return []
+  }
+
+  return Array.isArray(object.material)
+    ? object.material
+    : [object.material]
+}
+
+function disposePreparedAssembly(
+  assembly,
+  preservedMaterials,
+) {
+  const materials = new Set()
+
+  assembly.traverse((object) => {
+    if (!object.isMesh) {
+      return
+    }
+
+    getMaterials(object).forEach((material) => {
+      if (material && !preservedMaterials.has(material)) {
+        materials.add(material)
+      }
+    })
+
+    if (object.userData.performanceOwnedGeometry) {
+      object.geometry.dispose()
+    }
+  })
+
+  materials.forEach((material) => material.dispose())
+}
+
+export function retainPreparedAssembly(
+  assembly,
+  preservedMaterials = [],
+  { releaseSharedGeometries = false } = {},
+) {
+  let entry = retainedAssemblies.get(assembly)
+  const sharedGeometries = new Set()
+
+  if (releaseSharedGeometries) {
+    assembly.traverse((object) => {
+      if (
+        object.isMesh &&
+        !object.userData.performanceOwnedGeometry
+      ) {
+        sharedGeometries.add(object.geometry)
+      }
+    })
+
+    sharedGeometries.forEach((geometry) => {
+      retainedSharedGeometries.set(
+        geometry,
+        (retainedSharedGeometries.get(geometry) ?? 0) + 1,
+      )
+    })
+  }
+
+  if (!entry) {
+    entry = {
+      count: 0,
+      preservedMaterials: new Set(preservedMaterials),
+    }
+    retainedAssemblies.set(assembly, entry)
+  }
+
+  entry.count += 1
+
+  return () => {
+    queueMicrotask(() => {
+      sharedGeometries.forEach((geometry) => {
+        const nextCount =
+          (retainedSharedGeometries.get(geometry) ?? 1) - 1
+
+        if (nextCount > 0) {
+          retainedSharedGeometries.set(geometry, nextCount)
+          return
+        }
+
+        geometry.dispose()
+        retainedSharedGeometries.delete(geometry)
+      })
+
+      entry.count -= 1
+
+      if (entry.count > 0) {
+        return
+      }
+
+      disposePreparedAssembly(
+        assembly,
+        entry.preservedMaterials,
+      )
+      retainedAssemblies.delete(assembly)
+    })
+  }
+}
+
+export function retainGeneratedMaterials(materials) {
+  materials.forEach((material) => {
+    retainedGeneratedMaterials.set(
+      material,
+      (retainedGeneratedMaterials.get(material) ?? 0) + 1,
+    )
+  })
+
+  return () => {
+    queueMicrotask(() => {
+      materials.forEach((material) => {
+        const nextCount =
+          (retainedGeneratedMaterials.get(material) ?? 1) - 1
+
+        if (nextCount > 0) {
+          retainedGeneratedMaterials.set(material, nextCount)
+          return
+        }
+
+        material.map?.dispose()
+        material.dispose()
+        retainedGeneratedMaterials.delete(material)
+      })
+    })
   }
 }
 
@@ -420,6 +559,10 @@ export function prepareEntranceMaterial({
   }
 
   const preparedMaterial = material.clone()
+  copySourceMaps(
+    preparedMaterial,
+    sourceMaterials.get(preparedMaterial.name),
+  )
   const profile = MATERIAL_PROFILES[preparedMaterial.name]
 
   if (profile) {
@@ -468,6 +611,12 @@ export function createRestoredRunnerMaterial(
   sourceTexture,
   uvChannel = 0,
 ) {
+  const cachedMaterials = runnerMaterialCache.get(sourceTexture)
+
+  if (cachedMaterials?.has(uvChannel)) {
+    return cachedMaterials.get(uvChannel)
+  }
+
   const albedo = sourceTexture.clone()
   albedo.wrapS = RepeatWrapping
   albedo.wrapT = RepeatWrapping
@@ -542,6 +691,9 @@ export function createRestoredRunnerMaterial(
     roughness: 1,
   })
   material.name = 'RestoredWornRunner'
+  const materialsByUv = cachedMaterials ?? new Map()
+  materialsByUv.set(uvChannel, material)
+  runnerMaterialCache.set(sourceTexture, materialsByUv)
   return material
 }
 

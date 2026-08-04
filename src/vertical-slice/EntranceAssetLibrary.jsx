@@ -1,9 +1,11 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useEffect, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
+import { shouldCastObjectShadow } from '../performance/qualitySettings'
 import {
   createEntranceMaterialResources,
   createRestoredRunnerMaterial,
   prepareEntranceMaterial,
+  retainPreparedAssembly,
 } from './entranceMaterialSystem'
 
 const MODEL_URL = '/models/entrance-asset-library.glb'
@@ -35,8 +37,12 @@ function collectSourceMaterials(scene) {
   return sourceMaterials
 }
 
-function EntranceAssemblyModel(props) {
-  const { scene } = useGLTF(MODEL_URL)
+function EntranceAssemblyModel({
+  onReady,
+  qualityLevel = 'high',
+  ...props
+}) {
+  const { scene } = useGLTF(MODEL_URL, '/draco/')
   const runnerTexture = useTexture(RUNNER_TEXTURE_URL)
   const materialResources = useMemo(
     () => createEntranceMaterialResources(),
@@ -85,7 +91,6 @@ function EntranceAssemblyModel(props) {
           return
         }
 
-        object.castShadow = true
         object.receiveShadow = true
 
         if (object.name === RUNNER_NAME) {
@@ -122,6 +127,37 @@ function EntranceAssemblyModel(props) {
     ],
   )
 
+  useEffect(() => {
+    if (!assembly) {
+      return
+    }
+
+    assembly.traverse((object) => {
+      if (object.isMesh) {
+        object.castShadow = shouldCastObjectShadow(
+          object.name,
+          qualityLevel,
+        )
+      }
+    })
+  }, [assembly, qualityLevel])
+
+  useEffect(() => {
+    if (assembly) {
+      onReady?.()
+    }
+  }, [assembly, onReady])
+
+  useEffect(
+    () =>
+      assembly
+        ? retainPreparedAssembly(assembly, [runnerMaterial], {
+            releaseSharedGeometries: true,
+          })
+        : undefined,
+    [assembly, runnerMaterial],
+  )
+
   if (!assembly) {
     throw new Error(`Missing GLB assembly: ${ASSEMBLY_NAME}`)
   }
@@ -141,5 +177,5 @@ export function EntranceAssetLibrary(props) {
   )
 }
 
-useGLTF.preload(MODEL_URL)
+useGLTF.preload(MODEL_URL, '/draco/')
 useTexture.preload(RUNNER_TEXTURE_URL)

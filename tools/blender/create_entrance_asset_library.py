@@ -3948,8 +3948,13 @@ def main():
         export_cameras=False,
         export_lights=False,
         export_extras=True,
-        export_image_format="AUTO",
-        export_jpeg_quality=76,
+        export_draco_mesh_compression_enable=True,
+        export_draco_mesh_compression_level=6,
+        export_draco_position_quantization=14,
+        export_draco_normal_quantization=10,
+        export_draco_texcoord_quantization=12,
+        export_image_format="WEBP",
+        export_image_quality=90,
     )
 
     mesh_objects = [
