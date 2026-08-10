@@ -25,6 +25,7 @@ export function FinalPrototypeEnvironment({
   onAudioStorySelect,
   onBookSelect,
   onEntranceReady,
+  onLoopActivate,
   onSocialOpen,
   progress,
   qualityLevel,
@@ -55,8 +56,11 @@ export function FinalPrototypeEnvironment({
             bookInteractionEnabled={bookInteractionEnabled}
             onAudioStorySelect={onAudioStorySelect}
             onBookSelect={onBookSelect}
+            onLoopActivate={onLoopActivate}
             onSocialOpen={onSocialOpen}
+            progress={progress}
             qualityLevel={qualityLevel}
+            reducedMotionEnabled={reducedMotionEnabled}
             socialInteractionEnabled={socialInteractionEnabled}
           />
         )}

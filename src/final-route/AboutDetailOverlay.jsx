@@ -10,7 +10,6 @@ export function AboutDetailOverlay({ about, onClose }) {
       onClose={onClose}
       title={about.title}
       titleId="about-detail-title"
-      variant="profile"
     >
       <div className="about-detail-layout">
         <figure className="about-portrait-figure">

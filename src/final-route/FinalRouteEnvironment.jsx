@@ -1,6 +1,9 @@
 import { FinalRouteAsset } from './FinalRouteAsset'
 import { getShadowMapSize } from '../performance/qualitySettings'
+import { MagicalPortal } from '../vertical-slice/AboutPortal'
 import {
+  FINAL_LOOP_PORTAL_POSITION,
+  FINAL_LOOP_PORTAL_ROTATION,
   FINAL_ROUTE_POSITION,
   FINAL_ROUTE_ROTATION,
 } from './finalRoutePlacement'
@@ -107,8 +110,11 @@ export function FinalRouteEnvironment({
   bookInteractionEnabled,
   onAudioStorySelect,
   onBookSelect,
+  onLoopActivate,
   onSocialOpen,
+  progress,
   qualityLevel = 'high',
+  reducedMotionEnabled,
   socialInteractionEnabled,
 }) {
   return (
@@ -123,6 +129,19 @@ export function FinalRouteEnvironment({
         qualityLevel={qualityLevel}
         rotation={FINAL_ROUTE_ROTATION}
         socialInteractionEnabled={socialInteractionEnabled}
+      />
+      <MagicalPortal
+        animationEnabled={progress > 0.78}
+        ariaLabel="Revenir au début du portfolio"
+        groupName="final-loop-portal"
+        interactionEnabled={progress > 0.9}
+        onActivate={onLoopActivate}
+        position={FINAL_LOOP_PORTAL_POSITION}
+        reducedMotionEnabled={reducedMotionEnabled}
+        rotation={FINAL_LOOP_PORTAL_ROTATION}
+        title="RETOUR AU DEBUT"
+        titleName="final-loop-portal-title"
+        triggerAttribute="data-final-loop-trigger"
       />
       <FinalRouteLighting qualityLevel={qualityLevel} />
     </group>

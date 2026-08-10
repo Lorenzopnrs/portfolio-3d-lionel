@@ -78,9 +78,10 @@ test('About uses a responsive professional profile panel without papyrus', () =>
     /\.archive-dialog\.is-profile\s*\{([\s\S]*?)\n\}/,
   )?.[1]
 
-  assert.match(aboutOverlay, /variant="profile"/)
+  assert.match(aboutOverlay, /<ArchiveDialog/)
   assert.doesNotMatch(aboutOverlay, /variant="manuscript"/)
   assert.match(archiveDialog, /is-profile/)
+  assert.doesNotMatch(archiveDialog, /is-default/)
   assert.ok(profileRule)
   assert.match(profileRule, /background:/)
   assert.doesNotMatch(profileRule, /papier\.webp/)

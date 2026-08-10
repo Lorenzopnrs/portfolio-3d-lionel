@@ -4,12 +4,14 @@ import {
   applyDirectionalInput,
   applyWheelInput,
   createMovementState,
+  resetMovementToStart,
   setReducedMotion,
   setTravelLocked,
   updateMovement,
 } from './movementController.js'
 import {
   EVALUATION_STOPS,
+  INITIAL_PROGRESS,
   PATH_LENGTH,
 } from './cameraPath.js'
 
@@ -78,4 +80,26 @@ test('a strong wheel impulse cannot skip an architectural section', () => {
     Math.abs(controller.progress - startProgress) * PATH_LENGTH
 
   assert.ok(travelledDistance <= 0.62)
+})
+
+test('the final portal resets movement while preserving active preferences', () => {
+  const controller = createMovementState()
+  controller.progress = 0.997
+  controller.velocity = 0.18
+  controller.keyboardDirection = 1
+  controller.activeStopIndex = EVALUATION_STOPS.length - 1
+  controller.reducedMotion = true
+  controller.travelLocked = true
+  controller.lockedProgress = controller.progress
+
+  resetMovementToStart(controller)
+
+  assert.equal(controller.progress, INITIAL_PROGRESS)
+  assert.equal(controller.lockedProgress, INITIAL_PROGRESS)
+  assert.equal(controller.velocity, 0)
+  assert.equal(controller.keyboardDirection, 0)
+  assert.equal(controller.activeStopIndex, null)
+  assert.equal(controller.transition, null)
+  assert.equal(controller.reducedMotion, true)
+  assert.equal(controller.travelLocked, true)
 })

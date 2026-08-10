@@ -17,12 +17,9 @@ export function ArchiveDialog({
   onClose,
   title,
   titleId,
-  variant = 'default',
 }) {
   const dialogRef = useRef(null)
   const closeButtonRef = useRef(null)
-  const variantClassName =
-    variant === 'profile' ? 'is-profile' : 'is-default'
 
   useEffect(() => {
     closeButtonRef.current?.focus()
@@ -78,7 +75,7 @@ export function ArchiveDialog({
     >
       <section
         ref={dialogRef}
-        className={`archive-dialog ${variantClassName} ${className}`.trim()}
+        className={`archive-dialog is-profile ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

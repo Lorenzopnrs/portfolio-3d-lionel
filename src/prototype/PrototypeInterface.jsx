@@ -38,7 +38,7 @@ export function PrototypeInterface({
       <section className="prototype-controls" aria-label="Movement controls">
         <p className="control-hint" aria-hidden="true">
           <span className="wheel-symbol" />
-          Scroll or use arrow keys
+          Scroll, swipe or use arrow keys
         </p>
 
         <div className="control-dock">
@@ -46,20 +46,20 @@ export function PrototypeInterface({
             <button
               type="button"
               className="direction-button"
-              onClick={onMoveBackward}
+              onClick={onMoveForward}
               disabled={interactionLocked}
-              aria-label="Move backward"
-              title="Move backward"
+              aria-label="Move forward"
+              title="Move forward"
             >
               ↑
             </button>
             <button
               type="button"
               className="direction-button"
-              onClick={onMoveForward}
+              onClick={onMoveBackward}
               disabled={interactionLocked}
-              aria-label="Move forward"
-              title="Move forward"
+              aria-label="Move backward"
+              title="Move backward"
             >
               ↓
             </button>

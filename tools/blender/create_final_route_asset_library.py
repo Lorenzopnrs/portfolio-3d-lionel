@@ -648,7 +648,7 @@ def instance_project_architecture(assembly):
         (0.0, 0.3, 0.0),
     )
 
-    for index, y_position in enumerate((2.5, 5.0, 7.5)):
+    for index, y_position in enumerate((5.0, 7.5), start=1):
         base.instance_asset(
             "ProjectTransitionArch",
             assembly,
@@ -1067,45 +1067,6 @@ def instance_contact_architecture(assembly):
         "FinalUnfinishedThreshold",
         (-8.0, 20.4, 0.0),
     )
-
-    base.create_box(
-        "UnfinishedStoneBarrier",
-        (2.35, 0.72, 1.05),
-        (-8.0, 20.9, 0.53),
-        base.MATERIALS["stone_worn"],
-        assembly,
-        bevel=0.07,
-        rotation=(0.0, 0.0, -0.035),
-    )
-    for index, (x_position, z_position, scale) in enumerate(
-        (
-            (-8.82, 1.18, 0.86),
-            (-7.95, 1.12, 0.72),
-            (-7.2, 1.2, 0.8),
-        )
-    ):
-        base.create_box(
-            f"UnfinishedMasonryBlock_{index:02d}",
-            (0.72 * scale, 0.62, 0.58 * scale),
-            (x_position, 20.72, z_position),
-            base.MATERIALS[
-                "stone_worn" if index == 1 else "stone"
-            ],
-            assembly,
-            bevel=0.055,
-            rotation=(0.03 * index, 0.0, 0.08 - index * 0.07),
-        )
-
-    for index, x_position in enumerate((-8.72, -7.28)):
-        base.create_box(
-            f"UnfinishedTimberBrace_{index:02d}",
-            (0.18, 0.22, 3.15),
-            (x_position, 20.12, 2.15),
-            base.MATERIALS["wood_dark"],
-            assembly,
-            bevel=0.026,
-            rotation=(0.0, radians(8 if index == 0 else -8), 0.0),
-        )
 
     base.instance_asset(
         "NarrowFloorBay",

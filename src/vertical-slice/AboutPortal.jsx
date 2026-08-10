@@ -318,7 +318,7 @@ function createArchHole(width, springHeight, bottomInset) {
   return hole
 }
 
-function createPortalTitleTexture() {
+function createPortalTitleTexture(title) {
   const canvas = document.createElement('canvas')
   canvas.width = 1024
   canvas.height = 256
@@ -327,15 +327,16 @@ function createPortalTitleTexture() {
   context.clearRect(0, 0, canvas.width, canvas.height)
   context.textAlign = 'center'
   context.textBaseline = 'middle'
-  context.font = '600 88px Georgia'
+  const fontSize = Math.min(88, Math.max(66, 1250 / title.length))
+  context.font = `600 ${fontSize}px Georgia`
   context.lineJoin = 'round'
   context.strokeStyle = 'rgb(31 43 83 / 92%)'
   context.lineWidth = 8
   context.shadowColor = 'rgb(135 164 235 / 78%)'
   context.shadowBlur = 26
-  context.strokeText('A PROPOS DE MOI', 512, 128)
+  context.strokeText(title, 512, 128)
   context.fillStyle = '#eef3ff'
-  context.fillText('A PROPOS DE MOI', 512, 128)
+  context.fillText(title, 512, 128)
 
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
@@ -346,14 +347,23 @@ function createPortalTitleTexture() {
   return texture
 }
 
-function PortalTitle({ onActivate, onPointerOut, onPointerOver }) {
-  const titleTexture = useMemo(() => createPortalTitleTexture(), [])
+function PortalTitle({
+  name,
+  onActivate,
+  onPointerOut,
+  onPointerOver,
+  title,
+}) {
+  const titleTexture = useMemo(
+    () => createPortalTitleTexture(title),
+    [title],
+  )
 
   useEffect(() => () => titleTexture.dispose(), [titleTexture])
 
   return (
     <mesh
-      name="about-portal-title"
+      name={name}
       position={[0, 2.05, 0.075]}
       onClick={(event) => {
         event.stopPropagation()
@@ -428,10 +438,18 @@ function PortalSurface({
   )
 }
 
-export function AboutPortal({
+export function MagicalPortal({
   animationEnabled = true,
+  ariaLabel,
+  groupName,
+  interactionEnabled = true,
   onActivate,
+  position,
   reducedMotionEnabled,
+  rotation = [0, 0, 0],
+  title,
+  titleName,
+  triggerAttribute,
 }) {
   const geometries = useMemo(() => {
     const surfaceShape = createArchShape(
@@ -470,10 +488,26 @@ export function AboutPortal({
     [geometries],
   )
 
-  const handlePointerOver = useCallback((event) => {
-    event.stopPropagation()
-    document.body.style.cursor = 'pointer'
-  }, [])
+  const handleActivate = useCallback(
+    (trigger) => {
+      if (interactionEnabled) {
+        onActivate(trigger)
+      }
+    },
+    [interactionEnabled, onActivate],
+  )
+
+  const handlePointerOver = useCallback(
+    (event) => {
+      if (!interactionEnabled) {
+        return
+      }
+
+      event.stopPropagation()
+      document.body.style.cursor = 'pointer'
+    },
+    [interactionEnabled],
+  )
 
   const handlePointerOut = useCallback((event) => {
     event.stopPropagation()
@@ -482,13 +516,14 @@ export function AboutPortal({
 
   return (
     <group
-      name="about-me-portal"
-      position={ABOUT_PORTAL_POSITION}
+      name={groupName}
+      position={position}
+      rotation={rotation}
     >
       <PortalSurface
         animationEnabled={animationEnabled}
         geometry={geometries.surface}
-        onActivate={onActivate}
+        onActivate={handleActivate}
         onPointerOut={handlePointerOut}
         onPointerOver={handlePointerOver}
         reducedMotionEnabled={reducedMotionEnabled}
@@ -499,7 +534,7 @@ export function AboutPortal({
         position={[0, 0, -0.12]}
         onClick={(event) => {
           event.stopPropagation()
-          onActivate(null)
+          handleActivate(null)
         }}
         onPointerOut={handlePointerOut}
         onPointerOver={handlePointerOver}
@@ -522,42 +557,57 @@ export function AboutPortal({
       />
 
       <PortalTitle
-        onActivate={onActivate}
+        name={titleName}
+        onActivate={handleActivate}
         onPointerOut={handlePointerOut}
         onPointerOver={handlePointerOver}
+        title={title}
       />
 
-      <Html
-        center
-        distanceFactor={5.4}
-        position={[0, 2.05, 0.19]}
-        transform
-        zIndexRange={[4, 2]}
-      >
-        <div className="about-portal-label">
-          <button
-            type="button"
-            className="about-portal-trigger"
-            data-about-trigger
-            aria-label="Ouvrir A PROPOS DE MOI"
-            onClick={(event) => {
-              event.stopPropagation()
-              onActivate(event.currentTarget)
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter' && event.key !== ' ') {
-                return
-              }
-
-              event.preventDefault()
-              event.stopPropagation()
-              onActivate(event.currentTarget)
-            }}
-          >
-            <span className="sr-only">Ouvrir la présentation</span>
-          </button>
-        </div>
-      </Html>
+      {interactionEnabled && (
+        <Html
+          center
+          distanceFactor={5.4}
+          position={[0, 2.05, 0.19]}
+          transform
+          zIndexRange={[4, 2]}
+        >
+          <div className="about-portal-label">
+            <button
+              type="button"
+              className="about-portal-trigger"
+              {...{ [triggerAttribute]: true }}
+              aria-label={ariaLabel}
+              onClick={(event) => {
+                event.stopPropagation()
+                handleActivate(event.currentTarget)
+              }}
+            >
+              <span className="sr-only">{ariaLabel}</span>
+            </button>
+          </div>
+        </Html>
+      )}
     </group>
+  )
+}
+
+export function AboutPortal({
+  animationEnabled = true,
+  onActivate,
+  reducedMotionEnabled,
+}) {
+  return (
+    <MagicalPortal
+      animationEnabled={animationEnabled}
+      ariaLabel="Ouvrir A PROPOS DE MOI"
+      groupName="about-me-portal"
+      onActivate={onActivate}
+      position={ABOUT_PORTAL_POSITION}
+      reducedMotionEnabled={reducedMotionEnabled}
+      title="A PROPOS DE MOI"
+      titleName="about-portal-title"
+      triggerAttribute="data-about-trigger"
+    />
   )
 }

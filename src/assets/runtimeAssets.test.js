@@ -10,7 +10,6 @@ const expectedRuntimeAssets = Object.freeze([
   '/categories/books/tome-1/affiche1.jpeg',
   '/categories/books/tome-2/affiche2.jpeg',
   '/categories/elements/pancarte.webp',
-  '/categories/elements/papier.webp',
 ])
 
 const runtimeSourcePaths = Object.freeze([
@@ -22,6 +21,7 @@ const runtimeSourcePaths = Object.freeze([
 const safeImageConsumers = Object.freeze([
   'src/final-route/AboutDetailOverlay.jsx',
   'src/final-route/BookDetailOverlay.jsx',
+  'src/final-route/FullLibraryOverlay.jsx',
   'src/final-route/ProjectDetailOverlay.jsx',
 ])
 

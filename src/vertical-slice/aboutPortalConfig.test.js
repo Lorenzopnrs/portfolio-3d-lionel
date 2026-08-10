@@ -79,7 +79,8 @@ test('About portal title is rendered as portal-anchored 3D material', () => {
 
   assert.match(portalSource, /CanvasTexture/)
   assert.match(portalSource, /function PortalTitle/)
-  assert.match(portalSource, /name="about-portal-title"/)
+  assert.match(portalSource, /titleName="about-portal-title"/)
+  assert.match(portalSource, /export function MagicalPortal/)
   assert.doesNotMatch(
     portalSource,
     /<span>A PROPOS DE MOI<\/span>/,

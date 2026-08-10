@@ -25,6 +25,7 @@ import { EVALUATION_STOPS, INITIAL_PROGRESS } from './prototype/cameraPath'
 import {
   applyDirectionalInput,
   createMovementState,
+  resetMovementToStart,
   setReducedMotion,
   setTravelLocked,
 } from './prototype/movementController'
@@ -40,6 +41,7 @@ import {
 } from './content/portfolioContent'
 import { ContextualContentControls } from './final-route/ContextualContentControls'
 import { FinalPrototypeEnvironment } from './final-route/FinalPrototypeEnvironment'
+import { LibraryAccessButton } from './final-route/LibraryAccessButton'
 import {
   getReturnFocusTarget,
   isAudioSurfaceInteractionEnabled,
@@ -64,6 +66,11 @@ const BookDetailOverlay = lazy(() =>
 const SocialDetailOverlay = lazy(() =>
   import('./final-route/SocialDetailOverlay').then((module) => ({
     default: module.SocialDetailOverlay,
+  })),
+)
+const FullLibraryOverlay = lazy(() =>
+  import('./final-route/FullLibraryOverlay').then((module) => ({
+    default: module.FullLibraryOverlay,
   })),
 )
 
@@ -128,6 +135,9 @@ function getContentTriggerSelector(content) {
 function App() {
   const movementRef = useRef(createMovementState())
   const contentTriggerRef = useRef(null)
+  const libraryTriggerRef = useRef(null)
+  const loopTransitionRef = useRef(false)
+  const loopTimersRef = useRef([])
   const entranceMovementInitializedRef = useRef(false)
   const [performanceDebugEnabled] = useState(() =>
     new URLSearchParams(window.location.search).has('perf'),
@@ -142,6 +152,8 @@ function App() {
   })
   const [announcement, setAnnouncement] = useState('')
   const [activeContent, setActiveContent] = useState(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [loopTransitionActive, setLoopTransitionActive] = useState(false)
   const [archiveIndexOpen, setArchiveIndexOpen] = useState(false)
   const [entranceReady, setEntranceReady] = useState(false)
   const [documentVisible, setDocumentVisible] = useState(!document.hidden)
@@ -191,6 +203,13 @@ function App() {
     }
   }, [])
 
+  useEffect(
+    () => () => {
+      loopTimersRef.current.forEach((timer) => window.clearTimeout(timer))
+    },
+    [],
+  )
+
   const handleTelemetry = useCallback((nextTelemetry) => {
     setTelemetry((currentTelemetry) => ({
       ...nextTelemetry,
@@ -214,6 +233,40 @@ function App() {
   const handleEntranceReady = useCallback(() => {
     setEntranceReady(true)
   }, [])
+
+  const handleLoopActivate = useCallback(() => {
+    if (loopTransitionRef.current) {
+      return
+    }
+
+    loopTransitionRef.current = true
+    setLoopTransitionActive(true)
+    setTravelLocked(movementRef.current, true)
+    setArchiveIndexOpen(false)
+    setAnnouncement('Retour au début du portfolio')
+
+    const resetDelay = reducedMotionEnabled ? 100 : 360
+    const transitionDuration = reducedMotionEnabled ? 260 : 820
+    const resetTimer = window.setTimeout(() => {
+      resetMovementToStart(movementRef.current)
+      setTelemetry({
+        progress: INITIAL_PROGRESS,
+        activeStopIndex: null,
+        sectionVisibility: INITIAL_ROUTE_SECTION_VISIBILITY,
+      })
+    }, resetDelay)
+    const finishTimer = window.setTimeout(() => {
+      loopTransitionRef.current = false
+      setLoopTransitionActive(false)
+      setAnnouncement('Début du portfolio retrouvé')
+
+      window.requestAnimationFrame(() => {
+        document.querySelector('.direction-button')?.focus()
+      })
+    }, transitionDuration)
+
+    loopTimersRef.current = [resetTimer, finishTimer]
+  }, [reducedMotionEnabled])
 
   const handleQualityPreferenceChange = useCallback((nextPreference) => {
     const normalizedPreference = normalizeQualityPreference(nextPreference)
@@ -282,6 +335,33 @@ function App() {
     })
   }, [activeContent])
 
+  const handleLibraryOpen = useCallback((trigger) => {
+    libraryTriggerRef.current = trigger
+    setTravelLocked(movementRef.current, true)
+    setArchiveIndexOpen(false)
+    setLibraryOpen(true)
+    setAnnouncement('Bibliothèque complète ouverte')
+  }, [])
+
+  const handleLibraryClose = useCallback(() => {
+    setTravelLocked(movementRef.current, false)
+    setLibraryOpen(false)
+    setAnnouncement(
+      'Bibliothèque fermée. Position dans le corridor restaurée.',
+    )
+
+    window.requestAnimationFrame(() => {
+      const focusTarget = getReturnFocusTarget(
+        libraryTriggerRef.current,
+        document.querySelector('[data-library-trigger]'),
+        document.querySelector('.direction-button'),
+      )
+
+      focusTarget?.focus()
+      libraryTriggerRef.current = null
+    })
+  }, [])
+
   const handleAboutOpen = useCallback(
     (trigger = null) =>
       handleContentOpen('about', aboutContent.id, trigger),
@@ -293,6 +373,33 @@ function App() {
       handleContentOpen('book', bookId, trigger),
     [handleContentOpen],
   )
+
+  const handleLibraryBookSelect = useCallback(
+    (bookId, trigger) =>
+      handleContentOpen('book', bookId, trigger),
+    [handleContentOpen],
+  )
+
+  const handleBookDetailClose = useCallback(() => {
+    if (!libraryOpen || activeContent?.type !== 'book') {
+      handleContentClose()
+      return
+    }
+
+    const closingBook = activeContent
+    setActiveContent(null)
+    setAnnouncement('Retour à la bibliothèque complète')
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector(
+            `[data-library-book-id="${closingBook.id}"]`,
+          )
+          ?.focus()
+      })
+    })
+  }, [activeContent, handleContentClose, libraryOpen])
 
   const handleAudioStorySelect = useCallback(
     (storyId, trigger = null) =>
@@ -327,8 +434,13 @@ function App() {
   const socialSurfaceInteractionEnabled =
     isSocialSurfaceInteractionEnabled(telemetry.progress)
   const interactionLocked = activeContent !== null
-  const controlsLocked = interactionLocked || !entranceReady
-  const renderingPaused = interactionLocked || !documentVisible
+  const controlsLocked =
+    interactionLocked ||
+    libraryOpen ||
+    loopTransitionActive ||
+    !entranceReady
+  const renderingPaused =
+    interactionLocked || libraryOpen || !documentVisible
   const qualityLevel = getEffectiveQuality(
     qualityPreference,
     automaticQuality,
@@ -390,6 +502,7 @@ function App() {
               onAudioStorySelect={handleAudioStorySelect}
               onBookSelect={handleBookSelect}
               onEntranceReady={handleEntranceReady}
+              onLoopActivate={handleLoopActivate}
               onSocialOpen={handleSocialOpen}
               progress={telemetry.progress}
               qualityLevel={qualityLevel}
@@ -439,6 +552,12 @@ function App() {
           onAudioStorySelect={handleAudioStorySelect}
           onBookSelect={handleBookSelect}
           onSocialOpen={handleSocialOpen}
+        />
+
+        <LibraryAccessButton
+          disabled={controlsLocked}
+          onOpen={handleLibraryOpen}
+          visible={bookSurfaceInteractionEnabled}
         />
 
         <p className="sr-only" aria-live="polite">
@@ -522,7 +641,15 @@ function App() {
         {activeBook && (
           <BookDetailOverlay
             book={activeBook}
-            onClose={handleContentClose}
+            onClose={handleBookDetailClose}
+          />
+        )}
+
+        {libraryOpen && !activeBook && (
+          <FullLibraryOverlay
+            books={books}
+            onBookSelect={handleLibraryBookSelect}
+            onClose={handleLibraryClose}
           />
         )}
 
@@ -541,6 +668,16 @@ function App() {
           />
         )}
       </Suspense>
+
+      {loopTransitionActive && (
+        <div
+          className={`loop-transition${reducedMotionEnabled ? ' is-reduced-motion' : ''}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span>Retour au seuil d’entrée</span>
+        </div>
+      )}
     </main>
   )
 }

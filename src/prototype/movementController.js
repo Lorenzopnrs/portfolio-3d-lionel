@@ -119,6 +119,19 @@ export function createMovementState() {
   }
 }
 
+export function resetMovementToStart(controller) {
+  controller.progress = INITIAL_PROGRESS
+  controller.velocity = 0
+  controller.keyboardDirection = 0
+  controller.activeStopIndex = null
+  controller.lastReducedWheelTime = -Infinity
+  controller.lastInputTime = -Infinity
+  controller.transition = null
+  controller.lockedProgress = controller.travelLocked
+    ? INITIAL_PROGRESS
+    : null
+}
+
 export function setReducedMotion(controller, enabled) {
   controller.reducedMotion = enabled
   controller.velocity = 0

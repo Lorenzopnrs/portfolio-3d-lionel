@@ -4,8 +4,25 @@ import {
   setKeyboardDirection,
 } from './movementController.js'
 
-const FORWARD_KEYS = new Set(['ArrowDown', 'PageDown'])
-const BACKWARD_KEYS = new Set(['ArrowUp', 'PageUp'])
+const FORWARD_KEYS = new Set(['ArrowUp', 'PageDown'])
+const BACKWARD_KEYS = new Set(['ArrowDown', 'PageUp'])
+const INTERACTIVE_TOUCH_SELECTOR = [
+  '[data-travel-lock]',
+  'a',
+  'audio',
+  'button',
+  'iframe',
+  'input',
+  'select',
+  'textarea',
+  'video',
+  '[contenteditable="true"]',
+  '[role="button"]',
+  '[role="dialog"]',
+].join(',')
+const SWIPE_DISTANCE_THRESHOLD = 56
+const SWIPE_VELOCITY_THRESHOLD = 0.24
+const SWIPE_VERTICAL_DOMINANCE = 1.2
 
 function getKeyDirection(key) {
   if (FORWARD_KEYS.has(key)) {
@@ -21,6 +38,7 @@ function getKeyDirection(key) {
 
 export function installPathControls(eventTarget, movementRef) {
   const pressedKeys = new Set()
+  let touchGesture = null
 
   const getPressedDirection = () => {
     const forwardPressed = [...FORWARD_KEYS].some((key) =>
@@ -99,18 +117,83 @@ export function installPathControls(eventTarget, movementRef) {
 
   const handleBlur = () => {
     pressedKeys.clear()
+    touchGesture = null
     setKeyboardDirection(movementRef.current, 0)
+  }
+
+  const handleTouchStart = (event) => {
+    const touch = event.touches?.[0]
+    const interactiveOrigin = event.target?.closest?.(
+      INTERACTIVE_TOUCH_SELECTOR,
+    )
+
+    if (
+      movementRef.current.travelLocked ||
+      event.touches?.length !== 1 ||
+      !touch ||
+      interactiveOrigin
+    ) {
+      touchGesture = null
+      return
+    }
+
+    touchGesture = {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      timeStamp: event.timeStamp,
+    }
+  }
+
+  const handleTouchEnd = (event) => {
+    const gesture = touchGesture
+    const touch = event.changedTouches?.[0]
+    touchGesture = null
+
+    if (!gesture || !touch || movementRef.current.travelLocked) {
+      return
+    }
+
+    const distanceX = touch.clientX - gesture.clientX
+    const distanceY = touch.clientY - gesture.clientY
+    const duration = Math.max(1, event.timeStamp - gesture.timeStamp)
+    const velocity = Math.abs(distanceY) / duration
+    const isIntentionalVerticalSwipe =
+      Math.abs(distanceY) >= SWIPE_DISTANCE_THRESHOLD &&
+      Math.abs(distanceY) >=
+        Math.abs(distanceX) * SWIPE_VERTICAL_DOMINANCE &&
+      velocity >= SWIPE_VELOCITY_THRESHOLD
+
+    if (!isIntentionalVerticalSwipe) {
+      return
+    }
+
+    event.preventDefault()
+    applyDirectionalInput(movementRef.current, Math.sign(distanceY))
+  }
+
+  const handleTouchCancel = () => {
+    touchGesture = null
   }
 
   eventTarget.addEventListener('wheel', handleWheel, { passive: false })
   eventTarget.addEventListener('keydown', handleKeyDown)
   eventTarget.addEventListener('keyup', handleKeyUp)
   eventTarget.addEventListener('blur', handleBlur)
+  eventTarget.addEventListener('touchstart', handleTouchStart, {
+    passive: true,
+  })
+  eventTarget.addEventListener('touchend', handleTouchEnd, {
+    passive: false,
+  })
+  eventTarget.addEventListener('touchcancel', handleTouchCancel)
 
   return () => {
     eventTarget.removeEventListener('wheel', handleWheel)
     eventTarget.removeEventListener('keydown', handleKeyDown)
     eventTarget.removeEventListener('keyup', handleKeyUp)
     eventTarget.removeEventListener('blur', handleBlur)
+    eventTarget.removeEventListener('touchstart', handleTouchStart)
+    eventTarget.removeEventListener('touchend', handleTouchEnd)
+    eventTarget.removeEventListener('touchcancel', handleTouchCancel)
   }
 }
