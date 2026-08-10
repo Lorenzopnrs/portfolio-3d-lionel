@@ -1,9 +1,3 @@
-import {
-  audioStories,
-  books,
-  socialContent,
-  socialLinks,
-} from '../content/portfolioContent'
 import { getContextualPanelId } from './interactionState'
 
 function SocialLinkControl({ socialLink }) {
@@ -20,7 +14,11 @@ function SocialLinkControl({ socialLink }) {
   )
 }
 
-function BookControls({ onBookSelect }) {
+function BookControls({ books, onBookSelect }) {
+  if (books.length === 0) {
+    return <p className="content-access-empty">Aucun livre publié.</p>
+  }
+
   return (
     <div className="content-access-actions">
       {books.map((book) => (
@@ -40,7 +38,15 @@ function BookControls({ onBookSelect }) {
   )
 }
 
-function AudioStoryControls({ onAudioStorySelect }) {
+function AudioStoryControls({ audioStories, onAudioStorySelect }) {
+  if (audioStories.length === 0) {
+    return (
+      <p className="content-access-empty">
+        Aucune histoire audio publiée.
+      </p>
+    )
+  }
+
   return (
     <div className="content-access-actions">
       {audioStories.map((story) => (
@@ -60,7 +66,7 @@ function AudioStoryControls({ onAudioStorySelect }) {
   )
 }
 
-function SocialControls({ onSocialOpen }) {
+function SocialControls({ onSocialOpen, socialLinks }) {
   return (
     <>
       <button
@@ -84,6 +90,8 @@ function SocialControls({ onSocialOpen }) {
 }
 
 function ArchiveIndex({
+  audioStories,
+  books,
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
@@ -99,11 +107,14 @@ function ArchiveIndex({
       <div className="content-access-groups">
         <section>
           <h3>LIVRES</h3>
-          <BookControls onBookSelect={onBookSelect} />
+          <BookControls books={books} onBookSelect={onBookSelect} />
         </section>
         <section>
           <h3>HISTOIRES AUDIOS</h3>
-          <AudioStoryControls onAudioStorySelect={onAudioStorySelect} />
+          <AudioStoryControls
+            audioStories={audioStories}
+            onAudioStorySelect={onAudioStorySelect}
+          />
         </section>
         <section>
           <h3>RESEAUX SOCIAUX</h3>
@@ -124,10 +135,14 @@ function ArchiveIndex({
 export function ContextualContentControls({
   activeStopId,
   archiveIndexOpen,
+  audioStories,
+  books,
   interactionLocked,
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
+  socialContent,
+  socialLinks,
 }) {
   const panelId = getContextualPanelId(
     activeStopId,
@@ -138,6 +153,8 @@ export function ContextualContentControls({
   if (panelId === 'archive') {
     return (
       <ArchiveIndex
+        audioStories={audioStories}
+        books={books}
         onAudioStorySelect={onAudioStorySelect}
         onBookSelect={onBookSelect}
         onSocialOpen={onSocialOpen}
@@ -153,7 +170,7 @@ export function ContextualContentControls({
       >
         <p className="content-access-kicker">Galerie de lecture</p>
         <h2 id="book-access-title">LIVRES</h2>
-        <BookControls onBookSelect={onBookSelect} />
+        <BookControls books={books} onBookSelect={onBookSelect} />
       </nav>
     )
   }
@@ -166,7 +183,10 @@ export function ContextualContentControls({
       >
         <p className="content-access-kicker">Galerie d’écoute</p>
         <h2 id="audio-access-title">HISTOIRES AUDIOS</h2>
-        <AudioStoryControls onAudioStorySelect={onAudioStorySelect} />
+        <AudioStoryControls
+          audioStories={audioStories}
+          onAudioStorySelect={onAudioStorySelect}
+        />
       </nav>
     )
   }
@@ -180,7 +200,10 @@ export function ContextualContentControls({
         <p className="content-access-kicker">Correspondances</p>
         <h2 id="social-access-title">{socialContent.title}</h2>
         <p>{socialContent.summary}</p>
-        <SocialControls onSocialOpen={onSocialOpen} />
+        <SocialControls
+          onSocialOpen={onSocialOpen}
+          socialLinks={socialLinks}
+        />
       </nav>
     )
   }

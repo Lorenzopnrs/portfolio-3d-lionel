@@ -22,7 +22,7 @@ export function AboutDetailOverlay({ about, onClose }) {
             />
           </div>
           <figcaption>
-            <strong>Lionel Chiry</strong>
+            <strong>{about.name}</strong>
             <span>Auteur</span>
           </figcaption>
         </figure>

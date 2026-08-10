@@ -1,5 +1,5 @@
 import { ArchiveDialog } from './ArchiveDialog'
-import { EmbeddedYouTubeMedia } from './EmbeddedYouTubeMedia'
+import { AudioStoryMedia } from './AudioStoryMedia'
 
 export function AudioStoryDetailOverlay({ onClose, story }) {
   return (
@@ -29,10 +29,7 @@ export function AudioStoryDetailOverlay({ onClose, story }) {
             <p>Enregistrement</p>
             <h3 id="audio-player-heading">Écouter</h3>
           </div>
-          <EmbeddedYouTubeMedia
-            media={story.media}
-            linkLabel="Ouvrir l’enregistrement sur YouTube"
-          />
+          <AudioStoryMedia media={story.media} />
         </section>
       </div>
     </ArchiveDialog>

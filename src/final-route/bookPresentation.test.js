@@ -12,7 +12,9 @@ const focusStatePath = `${root}src/final-route/bookFocusState.js`
 test('book corridor frames use upright full-cover display planes', () => {
   const assetSource = readFileSync(assetPath, 'utf8')
 
-  assert.match(assetSource, /books\.map\(\(book\) => book\.cover\.src\)/)
+  assert.match(assetSource, /PHYSICAL_BOOK_SLOT_COUNT = 3/)
+  assert.match(assetSource, /bookSlots\[0\]\?\.cover\.src/)
+  assert.match(assetSource, /featuredBooks\[index\] \?\? null/)
   assert.match(assetSource, /context\.drawImage\(sourceImage/)
   assert.match(assetSource, /PROJECT_SURFACE_PATTERN/)
   assert.match(assetSource, /PlaneGeometry/)

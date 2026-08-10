@@ -6,6 +6,7 @@ import {
 export const aboutContent = Object.freeze({
   id: 'about',
   title: 'A PROPOS DE MOI',
+  name: 'Lionel Chiry',
   summary: 'Ma passion pour l’écriture est née d’une contrainte.',
   paragraphs: Object.freeze([
     'Ma passion pour l’écriture est née d’une contrainte. Alors que mes camarades s\'exerçaient sur les terrains de sport, mon corps, lui, m’imposait l’immobilité. C’est sur le banc de touche, un stylo à la main et un bloc de feuilles sur les genoux, que j’ai découvert ma véritable liberté. Ce qui n’était qu’une évasion face à la maladie est devenu, au fil des pages, une nécessité vitale.',
@@ -50,6 +51,10 @@ export const books = Object.freeze([
       BOOK_COVER_URLS.shadowOfJackVolumeOne,
       'catégories/livres/Tome 1/Teaser1.webloc',
     ]),
+    featured: true,
+    featuredOrder: 1,
+    displayOrder: 1,
+    published: true,
   }),
   Object.freeze({
     id: 'shadow-of-jack-volume-2',
@@ -78,6 +83,10 @@ export const books = Object.freeze([
       BOOK_COVER_URLS.shadowOfJackVolumeTwo,
       'catégories/livres/Tome 2/Teaser2.webloc',
     ]),
+    featured: true,
+    featuredOrder: 2,
+    displayOrder: 2,
+    published: true,
   }),
   Object.freeze({
     id: 'the-thinker',
@@ -101,6 +110,10 @@ export const books = Object.freeze([
       'catégories/livres/Le penseur/infos.rtf',
       BOOK_COVER_URLS.thinker,
     ]),
+    featured: true,
+    featuredOrder: 3,
+    displayOrder: 3,
+    published: true,
   }),
 ])
 
@@ -124,6 +137,8 @@ export const audioStories = Object.freeze([
       'catégories/audio:histoire/Entre quatre miroirs/infos.rtf',
       'catégories/audio:histoire/Entre quatre miroirs/Entre quatre miroir.webloc',
     ]),
+    displayOrder: 1,
+    published: true,
   }),
   Object.freeze({
     id: 'coffee-time',
@@ -145,6 +160,8 @@ export const audioStories = Object.freeze([
       "catégories/audio:histoire/Le temps d'un café/infos.rtf",
       "catégories/audio:histoire/Le temps d'un café/Le temps d'un café.webloc",
     ]),
+    displayOrder: 2,
+    published: true,
   }),
 ])
 
@@ -161,6 +178,8 @@ export const socialLinks = Object.freeze([
     description: 'Ouvrir le profil Instagram fourni',
     href: 'https://www.instagram.com/lionelchiry/',
     sourceFile: 'catégories/Reseaux sociaux/Instagram.webloc',
+    displayOrder: 1,
+    active: true,
   }),
   Object.freeze({
     id: 'facebook',
@@ -168,6 +187,8 @@ export const socialLinks = Object.freeze([
     description: 'Ouvrir le profil Facebook fourni',
     href: 'https://www.facebook.com/lionel.chiry/',
     sourceFile: 'catégories/Reseaux sociaux/Facebook.webloc',
+    displayOrder: 2,
+    active: true,
   }),
   Object.freeze({
     id: 'youtube',
@@ -175,6 +196,8 @@ export const socialLinks = Object.freeze([
     description: 'Ouvrir la chaîne YouTube fournie',
     href: 'https://www.youtube.com/@LioStory-u5b',
     sourceFile: 'catégories/Reseaux sociaux/Chaine YouTube.webloc',
+    displayOrder: 3,
+    active: true,
   }),
   Object.freeze({
     id: 'author-page',
@@ -184,5 +207,16 @@ export const socialLinks = Object.freeze([
       'https://www.publier-un-livre.com/fr/le-livre-en-papier-auteur/11211-lionel-chiry?srsltid=AfmBOorTyJTIHP86m70SsqO2MOSw_AUCgwvdeFheKp1EXEvIGnZDAqIO',
     sourceFile:
       'catégories/Reseaux sociaux/Publier un livre.webloc',
+    displayOrder: 4,
+    active: true,
   }),
 ])
+
+export const localPortfolioContent = Object.freeze({
+  about: aboutContent,
+  audioStories,
+  books,
+  socialContent,
+  socialLinks,
+  source: 'local',
+})

@@ -106,7 +106,9 @@ function FinalRouteLighting({ qualityLevel }) {
 }
 
 export function FinalRouteEnvironment({
+  audioStories,
   audioInteractionEnabled,
+  featuredBooks,
   bookInteractionEnabled,
   onAudioStorySelect,
   onBookSelect,
@@ -115,12 +117,16 @@ export function FinalRouteEnvironment({
   progress,
   qualityLevel = 'high',
   reducedMotionEnabled,
+  socialContent,
   socialInteractionEnabled,
+  socialLinks,
 }) {
   return (
     <group name="final-approved-route">
       <FinalRouteAsset
+        audioStories={audioStories}
         audioInteractionEnabled={audioInteractionEnabled}
+        featuredBooks={featuredBooks}
         bookInteractionEnabled={bookInteractionEnabled}
         onAudioStorySelect={onAudioStorySelect}
         onBookSelect={onBookSelect}
@@ -128,7 +134,9 @@ export function FinalRouteEnvironment({
         position={FINAL_ROUTE_POSITION}
         qualityLevel={qualityLevel}
         rotation={FINAL_ROUTE_ROTATION}
+        socialContent={socialContent}
         socialInteractionEnabled={socialInteractionEnabled}
+        socialLinks={socialLinks}
       />
       <MagicalPortal
         animationEnabled={progress > 0.78}

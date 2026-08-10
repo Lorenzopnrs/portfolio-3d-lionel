@@ -9,7 +9,11 @@
     "deploy": "sanity deploy",
     "deploy-graphql": "sanity graphql deploy",
     "dev": "sanity dev",
-    "start": "sanity start"
+    "lint": "eslint .",
+    "migrate:content": "sanity exec scripts/migrateContent.mjs --with-user-token",
+    "start": "sanity start",
+    "typecheck": "tsc --noEmit",
+    "verify:content": "sanity exec scripts/verifyContent.mjs --with-user-token"
   },
   "keywords": [
     "sanity"

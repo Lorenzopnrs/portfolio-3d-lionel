@@ -3,6 +3,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -32,13 +33,8 @@ import {
 import { PathCamera } from './prototype/PathCamera'
 import { PrototypeInterface } from './prototype/PrototypeInterface'
 import { usePathControls } from './prototype/usePathControls'
-import {
-  aboutContent,
-  audioStories,
-  books,
-  socialContent,
-  socialLinks,
-} from './content/portfolioContent'
+import { usePortfolioContent } from './content/usePortfolioContent'
+import { selectFeaturedBooks } from './content/sanityContent'
 import { ContextualContentControls } from './final-route/ContextualContentControls'
 import { FinalPrototypeEnvironment } from './final-route/FinalPrototypeEnvironment'
 import { LibraryAccessButton } from './final-route/LibraryAccessButton'
@@ -92,21 +88,27 @@ function getStoredQualityPreference() {
   }
 }
 
-function getContentRecord(contentType, contentId) {
-  if (contentType === 'about' && contentId === aboutContent.id) {
-    return aboutContent
+function getContentRecord(content, contentType, contentId) {
+  if (contentType === 'about' && contentId === content.about.id) {
+    return content.about
   }
 
   if (contentType === 'book') {
-    return books.find((book) => book.id === contentId) ?? null
+    return content.books.find((book) => book.id === contentId) ?? null
   }
 
   if (contentType === 'audio-story') {
-    return audioStories.find((story) => story.id === contentId) ?? null
+    return (
+      content.audioStories.find((story) => story.id === contentId) ??
+      null
+    )
   }
 
-  if (contentType === 'social' && contentId === socialContent.id) {
-    return socialContent
+  if (
+    contentType === 'social' &&
+    contentId === content.socialContent.id
+  ) {
+    return content.socialContent
   }
 
   return null
@@ -133,6 +135,18 @@ function getContentTriggerSelector(content) {
 }
 
 function App() {
+  const portfolioContent = usePortfolioContent()
+  const {
+    about: aboutContent,
+    audioStories,
+    books,
+    socialContent,
+    socialLinks,
+  } = portfolioContent
+  const featuredBooks = useMemo(
+    () => selectFeaturedBooks(books),
+    [books],
+  )
   const movementRef = useRef(createMovementState())
   const contentTriggerRef = useRef(null)
   const libraryTriggerRef = useRef(null)
@@ -288,7 +302,11 @@ function App() {
 
   const handleContentOpen = useCallback(
     (contentType, contentId, trigger = null) => {
-      const contentRecord = getContentRecord(contentType, contentId)
+      const contentRecord = getContentRecord(
+        portfolioContent,
+        contentType,
+        contentId,
+      )
 
       if (!contentRecord) {
         return
@@ -300,7 +318,7 @@ function App() {
       setActiveContent({ id: contentId, type: contentType })
       setAnnouncement(`${contentRecord.title} opened`)
     },
-    [],
+    [portfolioContent],
   )
 
   const handleContentClose = useCallback(() => {
@@ -310,6 +328,7 @@ function App() {
 
     const closingContent = activeContent
     const contentRecord = getContentRecord(
+      portfolioContent,
       closingContent.type,
       closingContent.id,
     )
@@ -333,7 +352,7 @@ function App() {
       focusTarget?.focus()
       contentTriggerRef.current = null
     })
-  }, [activeContent])
+  }, [activeContent, portfolioContent])
 
   const handleLibraryOpen = useCallback((trigger) => {
     libraryTriggerRef.current = trigger
@@ -365,7 +384,7 @@ function App() {
   const handleAboutOpen = useCallback(
     (trigger = null) =>
       handleContentOpen('about', aboutContent.id, trigger),
-    [handleContentOpen],
+    [aboutContent.id, handleContentOpen],
   )
 
   const handleBookSelect = useCallback(
@@ -410,17 +429,26 @@ function App() {
   const handleSocialOpen = useCallback(
     (trigger = null) =>
       handleContentOpen('social', socialContent.id, trigger),
-    [handleContentOpen],
+    [handleContentOpen, socialContent.id],
   )
 
   const activeBook =
     activeContent?.type === 'book'
-      ? getContentRecord(activeContent.type, activeContent.id)
+      ? getContentRecord(
+          portfolioContent,
+          activeContent.type,
+          activeContent.id,
+        )
       : null
   const activeAudioStory =
     activeContent?.type === 'audio-story'
-      ? getContentRecord(activeContent.type, activeContent.id)
+      ? getContentRecord(
+          portfolioContent,
+          activeContent.type,
+          activeContent.id,
+        )
       : null
+
   const aboutOpen = activeContent?.type === 'about'
   const socialOpen = activeContent?.type === 'social'
   const activeStopId =
@@ -433,7 +461,9 @@ function App() {
     isAudioSurfaceInteractionEnabled(telemetry.progress)
   const socialSurfaceInteractionEnabled =
     isSocialSurfaceInteractionEnabled(telemetry.progress)
-  const interactionLocked = activeContent !== null
+  const interactionLocked = Boolean(
+    aboutOpen || activeAudioStory || activeBook || socialOpen,
+  )
   const controlsLocked =
     interactionLocked ||
     libraryOpen ||
@@ -468,6 +498,7 @@ function App() {
     <main
       className={`prototype-shell${renderingPaused ? ' is-render-paused' : ''}`}
       aria-busy={!entranceReady}
+      data-content-source={portfolioContent.source}
     >
       <div
         className="experience-layer"
@@ -495,7 +526,9 @@ function App() {
               intensity={1.78}
             />
             <FinalPrototypeEnvironment
+              audioStories={audioStories}
               audioInteractionEnabled={audioSurfaceInteractionEnabled}
+              featuredBooks={featuredBooks}
               bookInteractionEnabled={bookSurfaceInteractionEnabled}
               entranceReady={entranceReady}
               onAboutOpen={handleAboutOpen}
@@ -508,7 +541,9 @@ function App() {
               qualityLevel={qualityLevel}
               reducedMotionEnabled={reducedMotionEnabled}
               sectionVisibility={telemetry.sectionVisibility}
+              socialContent={socialContent}
               socialInteractionEnabled={socialSurfaceInteractionEnabled}
+              socialLinks={socialLinks}
             />
             <PathCamera
               movementRef={movementRef}
@@ -548,10 +583,14 @@ function App() {
         <ContextualContentControls
           activeStopId={activeStopId}
           archiveIndexOpen={archiveIndexOpen}
+          audioStories={audioStories}
+          books={books}
           interactionLocked={controlsLocked}
           onAudioStorySelect={handleAudioStorySelect}
           onBookSelect={handleBookSelect}
           onSocialOpen={handleSocialOpen}
+          socialContent={socialContent}
+          socialLinks={socialLinks}
         />
 
         <LibraryAccessButton

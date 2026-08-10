@@ -514,6 +514,12 @@
   margin-top: 12px;
 }
 
+.content-access-empty {
+  margin: 8px 0 0;
+  color: #b8afa1;
+  font: 500 12px/1.5 var(--body-font);
+}
+
 .content-access-groups {
   display: grid;
   gap: 18px;
@@ -1207,6 +1213,21 @@ img[data-asset-fallback='true'] {
   margin: 26px 0 0;
   padding: 0;
   list-style: none;
+}
+
+.full-library-empty {
+  margin: 26px 0 0;
+  border-top: 1px solid rgb(183 151 101 / 24%);
+  padding-top: 22px;
+  color: #bdb5a8;
+  font: 500 14px/1.6 var(--body-font);
+}
+
+.audio-file-media audio {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  accent-color: #b89561;
 }
 
 .full-library-grid button {

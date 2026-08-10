@@ -18,7 +18,9 @@ const CategorySignage = lazy(() =>
 )
 
 export function FinalPrototypeEnvironment({
+  audioStories,
   audioInteractionEnabled,
+  featuredBooks,
   bookInteractionEnabled,
   entranceReady,
   onAboutOpen,
@@ -31,7 +33,9 @@ export function FinalPrototypeEnvironment({
   qualityLevel,
   reducedMotionEnabled,
   sectionVisibility,
+  socialContent,
   socialInteractionEnabled,
+  socialLinks,
 }) {
   return (
     <>
@@ -52,7 +56,9 @@ export function FinalPrototypeEnvironment({
       <Suspense fallback={null}>
         {sectionVisibility.finalRoute && (
           <FinalRouteEnvironment
+            audioStories={audioStories}
             audioInteractionEnabled={audioInteractionEnabled}
+            featuredBooks={featuredBooks}
             bookInteractionEnabled={bookInteractionEnabled}
             onAudioStorySelect={onAudioStorySelect}
             onBookSelect={onBookSelect}
@@ -61,7 +67,9 @@ export function FinalPrototypeEnvironment({
             progress={progress}
             qualityLevel={qualityLevel}
             reducedMotionEnabled={reducedMotionEnabled}
+            socialContent={socialContent}
             socialInteractionEnabled={socialInteractionEnabled}
+            socialLinks={socialLinks}
           />
         )}
       </Suspense>
