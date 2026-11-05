@@ -179,6 +179,40 @@ test('a newly published book appears without changing the three physical slots',
   assert.equal(selectFeaturedBooks(content.books).length, 3)
 })
 
+const LOCAL_AGENDA = Object.freeze({
+  agendaEvents: [{ id: 'local', startDate: '2027-02-01', title: 'Dans le code' }],
+})
+
+test('the dates published in the Studio take over those kept in the code', () => {
+  const event = (id, title, published = true) => ({
+    _id: `event-${id}`,
+    published,
+    startDate: '2027-02-01',
+    title,
+  })
+  const content = createPortfolioContentBundle(
+    {
+      ...sanityPayload,
+      agendaEvents: [
+        event('new', 'Nouvelle'),
+        event('draft', 'Masquée', false),
+      ],
+    },
+    LOCAL_AGENDA,
+  )
+
+  assert.deepEqual(
+    content.agendaEvents.map(({ id, title }) => [id, title]),
+    [['new', 'Nouvelle']],
+  )
+})
+
+test('a date removed from the Studio does not come back from the code', () => {
+  const content = createPortfolioContentBundle(sanityPayload, LOCAL_AGENDA)
+
+  assert.deepEqual(content.agendaEvents, [])
+})
+
 test('Sanity failures preserve the complete local fallback', async () => {
   const warnings = []
   const fallbackContent = Object.freeze({ source: 'local' })

@@ -50,6 +50,33 @@ test('future sections load before arrival and unload after backtracking', () => 
   )
 })
 
+test('the gallery stands ready before the corridor lines up with it', () => {
+  // From here on, its arch is in sight at the far end of the corridor.
+  const visibility = resolveRouteSectionVisibility(
+    INITIAL_ROUTE_SECTION_VISIBILITY,
+    0.3,
+  )
+
+  assert.equal(visibility.finalRoute, true)
+})
+
+test('route visibility keeps the same object while no section changes', () => {
+  assert.equal(
+    resolveRouteSectionVisibility(
+      INITIAL_ROUTE_SECTION_VISIBILITY,
+      0.1,
+    ),
+    INITIAL_ROUTE_SECTION_VISIBILITY,
+  )
+  assert.notEqual(
+    resolveRouteSectionVisibility(
+      INITIAL_ROUTE_SECTION_VISIBILITY,
+      0.49,
+    ),
+    INITIAL_ROUTE_SECTION_VISIBILITY,
+  )
+})
+
 test('route sections overlap at transitions without remaining at distant stops', () => {
   const transitionVisibility = resolveRouteSectionVisibility(
     INITIAL_ROUTE_SECTION_VISIBILITY,

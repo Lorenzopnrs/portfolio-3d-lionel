@@ -18,4 +18,11 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem('book').title('LIVRES'),
       S.documentTypeListItem('audioStory').title('HISTOIRES AUDIOS'),
       S.documentTypeListItem('socialLink').title('RESEAUX SOCIAUX'),
+      S.documentTypeListItem('agendaEvent')
+        .title('AGENDA')
+        .child(
+          S.documentTypeList('agendaEvent')
+            .title('AGENDA')
+            .defaultOrdering([{field: 'startDate', direction: 'asc'}]),
+        ),
     ])

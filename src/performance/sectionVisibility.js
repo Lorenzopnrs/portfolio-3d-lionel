@@ -6,9 +6,10 @@ const PROVENANCE_VISIBILITY = Object.freeze({
   hideAbove: 0.65,
   showBelow: 0.58,
 })
+// Shown before the turn: the gallery is in sight as soon as the corridor lines up.
 const FINAL_ROUTE_VISIBILITY = Object.freeze({
-  hideBelow: 0.32,
-  showAbove: 0.4,
+  hideBelow: 0.22,
+  showAbove: 0.29,
 })
 const SIGNAGE_VISIBILITY = Object.freeze({
   hideBelow: 0.4,
@@ -54,7 +55,7 @@ export function resolveRouteSectionVisibility(
   currentVisibility,
   progress,
 ) {
-  return {
+  const nextVisibility = {
     entrance: resolveSectionVisibility(
       currentVisibility.entrance,
       progress,
@@ -76,4 +77,11 @@ export function resolveRouteSectionVisibility(
       SIGNAGE_VISIBILITY,
     ),
   }
+  const unchanged = Object.keys(nextVisibility).every(
+    (section) => nextVisibility[section] === currentVisibility[section],
+  )
+
+  // Keeping the same object tells listeners that nothing changed: the static
+  // shadow maps are only redrawn when a room really appears or disappears.
+  return unchanged ? currentVisibility : nextVisibility
 }

@@ -21,16 +21,20 @@ import {
   PATH_LENGTH,
   PROJECT_GALLERY_PROGRESS_RANGE,
   applyCameraFocusTarget,
+  createCameraOrientation,
+  stepCameraOrientation,
   getCameraLookAheadDistance,
   getCameraOrientationResponse,
   getCameraPointAt,
+  CAMERA_FIELD_OF_VIEW,
+  getCameraFieldOfView,
+  getRestingFieldOfView,
 } from './cameraPath.js'
 const SAMPLE_COUNT = 12000
 const GEOMETRY_SAMPLE_COUNT = 4000
 const CAMERA_GEOMETRY_CLEARANCE = 0.16
-const FRAME_DELTA = 1 / 60
-const STRONG_IMPULSE_PROGRESS_STEP =
-  (0.32 * 57.466) / PATH_LENGTH / 30
+// A visitor taking their time in the gallery, in metres per second.
+const VISITING_PACE_PROGRESS_STEP = 1.5 / PATH_LENGTH / 30
 const PORTRAIT_HALF_FIELD_OF_VIEW = (15 * Math.PI) / 180
 const WORLD_UP = new Vector3(0, 1, 0)
 const CAMERA_FORWARD = new Vector3(0, 0, -1)
@@ -415,21 +419,6 @@ function updateSurfaceVisibility(
   }
 }
 
-function stepCameraOrientation(
-  cameraQuaternion,
-  progress,
-  frameDelta = FRAME_DELTA,
-) {
-  const response = getCameraOrientationResponse(progress)
-  const slerpAlpha =
-    1 - Math.exp(-response * Math.min(frameDelta, 1 / 30))
-
-  cameraQuaternion.slerp(
-    getCameraTargetQuaternion(progress),
-    slerpAlpha,
-  )
-}
-
 function simulateContinuousVisibility(surfaceCenters, direction) {
   const start =
     direction > 0
@@ -439,20 +428,27 @@ function simulateContinuousVisibility(surfaceCenters, direction) {
     direction > 0
       ? PROJECT_GALLERY_PROGRESS_RANGE.end + 0.04
       : PROJECT_GALLERY_PROGRESS_RANGE.start - 0.04
-  const cameraQuaternion = getCameraTargetQuaternion(start)
+  const orientation = createCameraOrientation(
+    getCameraTargetQuaternion(start),
+  )
   const visibility = new Set()
 
   for (
     let progress = start;
     direction > 0 ? progress <= end : progress >= end;
-    progress += direction * STRONG_IMPULSE_PROGRESS_STEP
+    progress += direction * VISITING_PACE_PROGRESS_STEP
   ) {
-    stepCameraOrientation(cameraQuaternion, progress, 1 / 30)
+    stepCameraOrientation(
+      orientation,
+      getCameraTargetQuaternion(progress),
+      progress,
+      1 / 30,
+    )
     updateSurfaceVisibility(
       visibility,
       surfaceCenters,
       progress,
-      cameraQuaternion,
+      orientation.quaternion,
     )
   }
 
@@ -504,10 +500,46 @@ function findGeometryViolation(primitives, point) {
   return null
 }
 
-test('approved route exposes four stops without a duplicate About stop', () => {
+test('the view zooms on the phone, then opens again for the agenda', () => {
+  const progressOf = (id) =>
+    EVALUATION_STOPS.find((stop) => stop.id === id).progress
+
+  assert.equal(
+    getCameraFieldOfView(progressOf('book1'), 16 / 9),
+    CAMERA_FIELD_OF_VIEW,
+  )
+  assert.ok(getCameraFieldOfView(progressOf('contact'), 16 / 9) < 30)
+  assert.equal(
+    getCameraFieldOfView(progressOf('agenda'), 16 / 9),
+    CAMERA_FIELD_OF_VIEW,
+  )
+})
+
+test('a phone held upright sees a whole carved frame from the corridor', () => {
+  const aspect = 375 / 812
+  const frameWidth = 1.69
+  const wallDistance = 2.87
+  const verticalTangent = Math.tan(
+    (getRestingFieldOfView(aspect) * Math.PI) / 360,
+  )
+
+  assert.ok(2 * wallDistance * verticalTangent * aspect > frameWidth)
+})
+
+test('approved route exposes nine stops without a duplicate About stop', () => {
   assert.deepEqual(
     EVALUATION_STOPS.map((stop) => stop.id),
-    ['entrance', 'projects', 'social', 'contact'],
+    [
+      'entrance',
+      'book1',
+      'book2',
+      'projects',
+      'library',
+      'audioFrames',
+      'social',
+      'contact',
+      'agenda',
+    ],
   )
 })
 
@@ -558,7 +590,7 @@ test('camera clears the exported final-route GLB in both directions', () => {
   }
 })
 
-test('rendered camera reveals every project surface at maximum speed', () => {
+test('rendered camera reveals every project surface at a visiting pace', () => {
   const primitives = readFinalRouteCollisionGeometry()
   const surfaceCenters = getProjectSurfaceCenters(primitives)
   const expectedSurfaces = [
@@ -580,13 +612,13 @@ test('rendered camera reveals every project surface at maximum speed', () => {
   }
 })
 
-test('reduced motion disables accelerated project camera focus', () => {
+test('looking at a frame never makes the camera turn faster than the corridor', () => {
   const projectProgress = EVALUATION_STOPS.find(
     (stop) => stop.id === 'projects',
   ).progress
 
-  assert.ok(
-    getCameraOrientationResponse(projectProgress) >
-      getCameraOrientationResponse(projectProgress, false),
+  assert.equal(
+    getCameraOrientationResponse(projectProgress),
+    getCameraOrientationResponse(0.05),
   )
 })

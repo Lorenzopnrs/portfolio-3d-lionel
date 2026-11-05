@@ -22,7 +22,16 @@ import {
   INITIAL_ROUTE_SECTION_VISIBILITY,
   resolveRouteSectionVisibility,
 } from './performance/sectionVisibility'
-import { EVALUATION_STOPS, INITIAL_PROGRESS } from './prototype/cameraPath'
+import {
+  CAMERA_FIELD_OF_VIEW,
+  EVALUATION_STOPS,
+  INITIAL_PROGRESS,
+} from './prototype/cameraPath'
+import {
+  formatEventDates,
+  formatEventPlace,
+  selectUpcomingEvents,
+} from './content/agenda.js'
 import {
   applyDirectionalInput,
   createMovementState,
@@ -59,6 +68,11 @@ const BookDetailOverlay = lazy(() =>
     default: module.BookDetailOverlay,
   })),
 )
+const AgendaOverlay = lazy(() =>
+  import('./final-route/AgendaOverlay').then((module) => ({
+    default: module.AgendaOverlay,
+  })),
+)
 const SocialDetailOverlay = lazy(() =>
   import('./final-route/SocialDetailOverlay').then((module) => ({
     default: module.SocialDetailOverlay,
@@ -88,7 +102,13 @@ function getStoredQualityPreference() {
   }
 }
 
+const AGENDA_RECORD = Object.freeze({ id: 'agenda', title: 'Agenda' })
+
 function getContentRecord(content, contentType, contentId) {
+  if (contentType === 'agenda') {
+    return AGENDA_RECORD
+  }
+
   if (contentType === 'about' && contentId === content.about.id) {
     return content.about
   }
@@ -131,13 +151,19 @@ function getContentTriggerSelector(content) {
     return '[data-social-trigger]'
   }
 
+  if (content.type === 'agenda') {
+    return '[data-agenda-trigger]'
+  }
+
   return null
 }
 
 function App() {
-  const portfolioContent = usePortfolioContent()
+  const { content: portfolioContent, settled: contentSettled } =
+    usePortfolioContent()
   const {
     about: aboutContent,
+    agendaEvents,
     audioStories,
     books,
     socialContent,
@@ -146,6 +172,10 @@ function App() {
   const featuredBooks = useMemo(
     () => selectFeaturedBooks(books),
     [books],
+  )
+  const upcomingEvents = useMemo(
+    () => selectUpcomingEvents(agendaEvents),
+    [agendaEvents],
   )
   const movementRef = useRef(createMovementState())
   const contentTriggerRef = useRef(null)
@@ -177,6 +207,7 @@ function App() {
   const [automaticQuality, setAutomaticQuality] = useState(
     getAutomaticQualityRecommendation,
   )
+  const [initialAutomaticQuality] = useState(automaticQuality)
   const [performanceMetrics, setPerformanceMetrics] = useState(null)
 
   usePathControls(movementRef)
@@ -432,6 +463,12 @@ function App() {
     [handleContentOpen, socialContent.id],
   )
 
+  const handleAgendaOpen = useCallback(
+    (trigger = null) =>
+      handleContentOpen('agenda', AGENDA_RECORD.id, trigger),
+    [handleContentOpen],
+  )
+
   const activeBook =
     activeContent?.type === 'book'
       ? getContentRecord(
@@ -451,6 +488,7 @@ function App() {
 
   const aboutOpen = activeContent?.type === 'about'
   const socialOpen = activeContent?.type === 'social'
+  const agendaOpen = activeContent?.type === 'agenda'
   const activeStopId =
     telemetry.activeStopIndex === null
       ? null
@@ -462,7 +500,11 @@ function App() {
   const socialSurfaceInteractionEnabled =
     isSocialSurfaceInteractionEnabled(telemetry.progress)
   const interactionLocked = Boolean(
-    aboutOpen || activeAudioStory || activeBook || socialOpen,
+    aboutOpen ||
+      activeAudioStory ||
+      activeBook ||
+      socialOpen ||
+      agendaOpen,
   )
   const controlsLocked =
     interactionLocked ||
@@ -471,10 +513,22 @@ function App() {
     !entranceReady
   const renderingPaused =
     interactionLocked || libraryOpen || !documentVisible
+  // SceneWarmup draws the first frame itself once every shader is compiled.
+  const frameloop = !entranceReady
+    ? 'never'
+    : renderingPaused
+      ? 'demand'
+      : 'always'
   const qualityLevel = getEffectiveQuality(
     qualityPreference,
     automaticQuality,
   )
+  // Changing the number of lights recompiles every shader, so the automatic
+  // quality never does it mid-visit: only an explicit choice from the visitor.
+  const lightQuality =
+    qualityPreference === 'automatic'
+      ? initialAutomaticQuality
+      : qualityPreference
   const qualitySettings = QUALITY_SETTINGS[qualityLevel]
 
   useEffect(() => {
@@ -509,12 +563,12 @@ function App() {
           <Canvas
             shadows="percentage"
             camera={{
-              fov: 52,
+              fov: CAMERA_FIELD_OF_VIEW,
               near: 0.1,
               far: 120,
             }}
             dpr={qualitySettings.dpr}
-            frameloop={renderingPaused ? 'demand' : 'always'}
+            frameloop={frameloop}
             gl={{ antialias: true, powerPreference: 'high-performance' }}
           >
             <color attach="background" args={['#0d0c0a']} />
@@ -526,12 +580,18 @@ function App() {
               intensity={1.78}
             />
             <FinalPrototypeEnvironment
+              agendaEvents={upcomingEvents}
               audioStories={audioStories}
               audioInteractionEnabled={audioSurfaceInteractionEnabled}
+              contentSettled={contentSettled}
               featuredBooks={featuredBooks}
               bookInteractionEnabled={bookSurfaceInteractionEnabled}
               entranceReady={entranceReady}
+              libraryAudioStories={audioStories}
+              libraryBooks={books}
+              lightQuality={lightQuality}
               onAboutOpen={handleAboutOpen}
+              onAgendaOpen={handleAgendaOpen}
               onAudioStorySelect={handleAudioStorySelect}
               onBookSelect={handleBookSelect}
               onEntranceReady={handleEntranceReady}
@@ -541,9 +601,7 @@ function App() {
               qualityLevel={qualityLevel}
               reducedMotionEnabled={reducedMotionEnabled}
               sectionVisibility={telemetry.sectionVisibility}
-              socialContent={socialContent}
               socialInteractionEnabled={socialSurfaceInteractionEnabled}
-              socialLinks={socialLinks}
             />
             <PathCamera
               movementRef={movementRef}
@@ -586,17 +644,17 @@ function App() {
           audioStories={audioStories}
           books={books}
           interactionLocked={controlsLocked}
+          onAgendaOpen={handleAgendaOpen}
           onAudioStorySelect={handleAudioStorySelect}
           onBookSelect={handleBookSelect}
           onSocialOpen={handleSocialOpen}
           socialContent={socialContent}
-          socialLinks={socialLinks}
         />
 
         <LibraryAccessButton
           disabled={controlsLocked}
           onOpen={handleLibraryOpen}
-          visible={bookSurfaceInteractionEnabled}
+          visible={activeStopId === 'library'}
         />
 
         <p className="sr-only" aria-live="polite">
@@ -637,6 +695,15 @@ function App() {
             {audioStories.map((story) => (
               <li key={story.id}>
                 {story.title}. {story.summary}
+              </li>
+            ))}
+          </ol>
+          <h3>AGENDA</h3>
+          <ol>
+            {upcomingEvents.map((event) => (
+              <li key={event.id}>
+                {event.title}, {formatEventDates(event)},{' '}
+                {formatEventPlace(event)}
               </li>
             ))}
           </ol>
@@ -695,6 +762,13 @@ function App() {
         {activeAudioStory && (
           <AudioStoryDetailOverlay
             story={activeAudioStory}
+            onClose={handleContentClose}
+          />
+        )}
+
+        {agendaOpen && (
+          <AgendaOverlay
+            events={upcomingEvents}
             onClose={handleContentClose}
           />
         )}

@@ -212,8 +212,26 @@ export const socialLinks = Object.freeze([
   }),
 ])
 
+// Only shown if Sanity cannot be reached: the agenda itself lives in the Studio.
+export const agendaEvents = Object.freeze([
+  Object.freeze({
+    id: 'tennis-club-mons-2026-12-12',
+    title: 'Tennis Club de Mons',
+    startDate: '2026-12-12',
+    time: '12h - 20h',
+  }),
+  Object.freeze({
+    id: 'petite-maison-folie-mons-2026-12-16',
+    title: 'La Petite Maison Folie',
+    startDate: '2026-12-16',
+    time: '14h - 21h',
+    city: 'Mons',
+  }),
+])
+
 export const localPortfolioContent = Object.freeze({
   about: aboutContent,
+  agendaEvents,
   audioStories,
   books,
   socialContent,

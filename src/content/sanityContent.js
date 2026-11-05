@@ -123,6 +123,20 @@ function mapAudioStory(story) {
   })
 }
 
+function mapAgendaEvent(event) {
+  return Object.freeze({
+    id: normalizeDocumentId(event._id, 'event-'),
+    title: event.title,
+    startDate: event.startDate,
+    endDate: event.endDate || null,
+    time: event.time || '',
+    venue: event.venue || '',
+    city: event.city || '',
+    description: event.description || '',
+    url: event.url || '',
+  })
+}
+
 function mapSocialLink(socialLink) {
   return Object.freeze({
     id: normalizeDocumentId(socialLink._id, 'social-'),
@@ -153,6 +167,9 @@ export function createPortfolioContentBundle(payload, fallbackContent) {
     .filter((story) => story.published === true)
     .map(mapAudioStory)
     .sort((left, right) => compareOrder(left, right, 'displayOrder'))
+  const publishedEvents = (payload.agendaEvents ?? [])
+    .filter((event) => event.published === true)
+    .map(mapAgendaEvent)
   const activeSocialLinks = (payload.socialLinks ?? [])
     .filter((socialLink) => socialLink.active === true)
     .map(mapSocialLink)
@@ -160,6 +177,7 @@ export function createPortfolioContentBundle(payload, fallbackContent) {
 
   return Object.freeze({
     about: mapAbout(payload.about, fallbackContent?.about),
+    agendaEvents: Object.freeze(publishedEvents),
     audioStories: Object.freeze(publishedAudioStories),
     books: Object.freeze(publishedBooks),
     socialContent:

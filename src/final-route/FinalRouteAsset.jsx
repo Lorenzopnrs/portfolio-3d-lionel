@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
 import {
   CanvasTexture,
@@ -10,7 +10,35 @@ import {
   SRGBColorSpace,
 } from 'three'
 import { useSafeTexture } from '../assets/useSafeTexture.js'
+import { requestRouteShadowRefresh } from '../performance/routeLights'
 import { shouldCastObjectShadow } from '../performance/qualitySettings'
+import {
+  drawAudioTitleCard,
+  loadAudioIllustration,
+} from './audioIllustration.js'
+import { AgendaBoard } from './AgendaBoard'
+import { AudioShelfCases } from './AudioShelfCases'
+import { FINAL_ROUTE_MASONRY, extendCastle } from './castleMasonry.js'
+import { ContactPhone } from './ContactPhone'
+import {
+  BOOK_FRAME_PLACEMENTS,
+  BOOK_POSTER_HEIGHT,
+  BOOK_POSTER_WIDTH,
+} from './ornateFrame.js'
+import { OrnateBookFrames } from './OrnateBookFrames'
+import {
+  AUDIO_FRAMES_CLUSTER_NAME,
+  AUDIO_FRAMES_TRANSFORM,
+  AUDIO_MISSING_WALL_POSITION,
+  AUDIO_SHELF_TRANSFORM,
+  AUDIO_WALL_NAME,
+  SHELF_BOOK_MATERIALS,
+  SHELF_NAME,
+  layoutAudioCases,
+  layoutLibraryBooks,
+  removeBooksInZones,
+} from './libraryShelf.js'
+import { LibraryShelfBooks } from './LibraryShelfBooks'
 import {
   createEntranceMaterialResources,
   createRestoredRunnerMaterial,
@@ -27,28 +55,38 @@ const ASSEMBLY_NAME = 'FinalRouteAssetLibraryAssembly'
 const RUNNER_NAME = 'FinalRouteRunner'
 const PROJECT_SURFACE_PATTERN = /^ProjectInteractionSurface_(\d+)$/
 const SOCIAL_SURFACE_PATTERN = /^SocialInteractionSurface_(\d+)$/
-const BOOK_SURFACE_LAYOUTS = Object.freeze([
-  Object.freeze({
-    normalX: -1,
-    textureDimensions: Object.freeze([800, 1000]),
-    worldHeight: 2.15,
-    worldWidth: 1.72,
-  }),
-  Object.freeze({
-    normalX: 1,
-    textureDimensions: Object.freeze([866, 1000]),
-    worldHeight: 2.02,
-    worldWidth: 1.75,
-  }),
-  Object.freeze({
-    normalX: -1,
-    textureDimensions: Object.freeze([876, 1000]),
-    worldHeight: 1.78,
-    worldWidth: 1.56,
-  }),
+const DISPLAY_SURFACE_PATTERN =
+  /^(?:Project|Social)InteractionSurface_\d+$/
+const AUDIO_SHELF_NAME = 'AudioArchiveShelf'
+const BOOK_SURFACE_LAYOUTS = Object.freeze(
+  BOOK_FRAME_PLACEMENTS.map(({ normalX }) =>
+    Object.freeze({
+      normalX,
+      textureDimensions: Object.freeze([800, 1234]),
+      worldHeight: BOOK_POSTER_HEIGHT,
+      worldWidth: BOOK_POSTER_WIDTH,
+    }),
+  ),
+)
+const BOOK_POSTER_GLOW = 0.17
+// Replaced by the carved frames, the phone and the agenda.
+const REPLACED_OBJECT_NAMES = Object.freeze([
+  'ArchiveDisplaySupport03',
+  'ContactFrameSupport',
+  'ContactInteractionSurface',
+  'ProjectFrameSupport01',
+  'ProjectFrameSupport03',
+  'ProjectLectern02',
+  'ProjectNicheSupport02',
 ])
 const PHYSICAL_BOOK_SLOT_COUNT = 3
-const PHYSICAL_AUDIO_SLOT_COUNT = 2
+const PHYSICAL_AUDIO_SLOT_COUNT = 3
+const AUDIO_SURFACE_LAYOUT = Object.freeze({
+  normalX: 1,
+  textureDimensions: Object.freeze([640, 800]),
+  worldHeight: 0.78,
+  worldWidth: 0.62,
+})
 
 function collectSourceMaterials(scene) {
   const sourceMaterials = new Map()
@@ -70,112 +108,6 @@ function collectSourceMaterials(scene) {
   })
 
   return sourceMaterials
-}
-
-function wrapText(
-  context,
-  text,
-  x,
-  y,
-  maximumWidth,
-  lineHeight,
-  maximumLines = Infinity,
-) {
-  const words = text.split(' ')
-  const lines = []
-  let line = ''
-
-  words.forEach((word) => {
-    const candidate = line ? `${line} ${word}` : word
-
-    if (
-      context.measureText(candidate).width > maximumWidth &&
-      line
-    ) {
-      lines.push(line)
-      line = word
-    } else {
-      line = candidate
-    }
-  })
-
-  if (line) {
-    lines.push(line)
-  }
-
-  const visibleLines = lines.slice(0, maximumLines)
-
-  if (lines.length > maximumLines) {
-    const lastIndex = visibleLines.length - 1
-    let truncatedLine = visibleLines[lastIndex]
-
-    while (
-      context.measureText(`${truncatedLine}...`).width > maximumWidth &&
-      truncatedLine.includes(' ')
-    ) {
-      truncatedLine = truncatedLine.slice(
-        0,
-        truncatedLine.lastIndexOf(' '),
-      )
-    }
-
-    visibleLines[lastIndex] = `${truncatedLine}...`
-  }
-
-  visibleLines.forEach((lineText, index) => {
-    context.fillText(lineText, x, y + index * lineHeight)
-  })
-
-  return y + visibleLines.length * lineHeight
-}
-
-function drawInformationFrame(context, width, height, color = '#b7a171') {
-  context.fillStyle = color
-  context.fillRect(0, 0, width, height)
-  context.strokeStyle = '#33261c'
-  context.lineWidth = 18
-  context.strokeRect(20, 20, width - 40, height - 40)
-  context.strokeStyle = '#806139'
-  context.lineWidth = 4
-  context.strokeRect(48, 48, width - 96, height - 96)
-}
-
-function drawAudioSurface(context, story, index, width, height) {
-  drawInformationFrame(context, width, height)
-
-  context.fillStyle = '#3a2b20'
-  context.font = '700 26px Arial'
-  context.fillText(
-    `HISTOIRE AUDIO ${String(index + 1).padStart(2, '0')}`,
-    70,
-    120,
-  )
-  context.font = '700 42px Georgia'
-  const textY = wrapText(
-    context,
-    story.title,
-    70,
-    225,
-    width - 140,
-    50,
-    3,
-  )
-  context.font = '400 23px Arial'
-  wrapText(
-    context,
-    story.summary,
-    70,
-    textY + 38,
-    width - 140,
-    32,
-    5,
-  )
-  context.font = '600 24px Arial'
-  context.fillText(
-    'OUVRIR L’ARCHIVE AUDIO',
-    70,
-    height - 92,
-  )
 }
 
 function drawBookSurface(
@@ -249,75 +181,6 @@ function drawEmptySurface(context, width, height) {
   context.strokeRect(28, 28, width - 56, height - 56)
 }
 
-function drawAudioIndexSurface(
-  context,
-  width,
-  height,
-  audioStories,
-) {
-  drawInformationFrame(context, width, height, '#a99770')
-
-  context.fillStyle = '#3a2b20'
-  context.font = '700 26px Arial'
-  context.fillText('GALERIE D’ÉCOUTE', 70, 120)
-  context.font = '700 44px Georgia'
-  const textY = wrapText(
-    context,
-    'HISTOIRES AUDIOS',
-    70,
-    235,
-    width - 140,
-    52,
-    2,
-  )
-  context.font = '400 24px Arial'
-  wrapText(
-    context,
-    `${audioStories.length} enregistrements fournis`,
-    70,
-    textY + 42,
-    width - 140,
-    34,
-    4,
-  )
-}
-
-function drawSocialSurface(
-  context,
-  width,
-  height,
-  socialContent,
-  socialLinks,
-) {
-  drawInformationFrame(context, width, height, '#c2af80')
-
-  context.fillStyle = '#3a2a20'
-  context.font = '700 28px Arial'
-  context.fillText('CORRESPONDANCES', 78, 126)
-  context.font = '700 54px Georgia'
-  const textY = wrapText(
-    context,
-    socialContent.title,
-    78,
-    230,
-    width - 156,
-    62,
-    2,
-  )
-  context.font = '400 26px Arial'
-  wrapText(
-    context,
-    socialLinks.map((socialLink) => socialLink.label).join(' · '),
-    78,
-    textY + 45,
-    width - 156,
-    38,
-    5,
-  )
-  context.font = '700 24px Arial'
-  context.fillText('OUVRIR LES LIENS', 78, height - 112)
-}
-
 function createSurfaceMaterial(
   drawSurface,
   dimensions = [768, 1024],
@@ -349,6 +212,20 @@ function createSurfaceMaterial(
   return material
 }
 
+function applyDisplayFinish(material, name, glow = 0.075) {
+  material.color.set('#ffffff')
+  material.depthTest = true
+  material.depthWrite = true
+  material.emissive.set('#ffffff')
+  material.emissiveMap = material.map
+  material.emissiveIntensity = glow
+  material.roughness = 0.9
+  material.side = DoubleSide
+  material.transparent = false
+  material.name = name
+  return material
+}
+
 function createBookCoverMaterial(sourceTexture, index, book) {
   const layout = BOOK_SURFACE_LAYOUTS[index]
   const material = createSurfaceMaterial(
@@ -367,21 +244,34 @@ function createBookCoverMaterial(sourceTexture, index, book) {
     layout.textureDimensions,
     { flipY: true },
   )
-  material.color.set('#ffffff')
-  material.depthTest = true
-  material.depthWrite = true
-  material.emissive.set('#ffffff')
-  material.emissiveMap = material.map
-  material.emissiveIntensity = 0.075
-  material.roughness = 0.9
-  material.side = DoubleSide
-  material.transparent = false
-  material.name = `BookCoverSurface_${String(index + 1).padStart(2, '0')}`
-  return material
+
+  return applyDisplayFinish(
+    material,
+    `BookCoverSurface_${String(index + 1).padStart(2, '0')}`,
+    BOOK_POSTER_GLOW,
+  )
 }
 
-function createBookSurfaceGeometry(index) {
-  const layout = BOOK_SURFACE_LAYOUTS[index]
+function createAudioFrameMaterial(story, index) {
+  const material = createSurfaceMaterial(
+    (context, width, height) => {
+      if (story) {
+        drawAudioTitleCard(context, story, width, height)
+      } else {
+        drawEmptySurface(context, width, height)
+      }
+    },
+    AUDIO_SURFACE_LAYOUT.textureDimensions,
+    { flipY: true },
+  )
+
+  return applyDisplayFinish(
+    material,
+    `AudioFrameSurface_${String(index + 1).padStart(2, '0')}`,
+  )
+}
+
+function createDisplaySurfaceGeometry(layout) {
   const geometry = new PlaneGeometry(
     layout.worldWidth,
     layout.worldHeight,
@@ -393,55 +283,19 @@ function createBookSurfaceGeometry(index) {
 
 function createInformationMaterials(
   bookCoverTextures,
-  { audioStories, featuredBooks, socialContent, socialLinks },
+  { audioStories, featuredBooks },
 ) {
   const bookMaterials = bookCoverTextures.map((texture, index) =>
     createBookCoverMaterial(texture, index, featuredBooks[index]),
   )
   const audioMaterials = Array.from(
     { length: PHYSICAL_AUDIO_SLOT_COUNT },
-    (_, index) => {
-      const story = audioStories[index]
-      return createSurfaceMaterial(
-        (context, width, height) => {
-          if (story) {
-            drawAudioSurface(context, story, index, width, height)
-          } else {
-            drawEmptySurface(context, width, height)
-          }
-        },
-        [640, 760],
-      )
-    },
-  )
-  audioMaterials.push(
-    createSurfaceMaterial(
-      (context, width, height) =>
-        drawAudioIndexSurface(
-          context,
-          width,
-          height,
-          audioStories,
-        ),
-      [640, 760],
-    ),
-  )
-  const socialMaterial = createSurfaceMaterial(
-    (context, width, height) =>
-      drawSocialSurface(
-        context,
-        width,
-        height,
-        socialContent,
-        socialLinks,
-      ),
-    [720, 900],
+    (_, index) => createAudioFrameMaterial(audioStories[index], index),
   )
 
   return {
     audioMaterials,
     bookMaterials,
-    socialMaterial,
   }
 }
 
@@ -468,18 +322,46 @@ function getAudioStoryId(objectName, audioStories) {
     : null
 }
 
-function FinalRouteModel({
+function ignoreRaycast() {}
+
+// Real items take the place of the decorative books they would overlap.
+function clearShelfSpace(shelf, zones) {
+  const bookMeshes = []
+
+  shelf.traverse((object) => {
+    if (
+      object.isMesh &&
+      SHELF_BOOK_MATERIALS.test(object.material.name)
+    ) {
+      bookMeshes.push(object)
+    }
+  })
+  removeBooksInZones(
+    bookMeshes.map((object) => object.geometry),
+    zones,
+  ).forEach((geometry, index) => {
+    if (geometry !== bookMeshes[index].geometry) {
+      bookMeshes[index].geometry = geometry
+      bookMeshes[index].userData.performanceOwnedGeometry = true
+    }
+  })
+}
+
+export function FinalRouteAsset({
+  agendaEvents = [],
   audioStories = [],
   audioInteractionEnabled = false,
   featuredBooks = [],
   bookInteractionEnabled = false,
+  libraryAudioStories = [],
+  libraryBooks = [],
+  onAgendaOpen,
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
   qualityLevel = 'high',
-  socialContent,
+  reducedMotionEnabled = false,
   socialInteractionEnabled = false,
-  socialLinks = [],
   ...props
 }) {
   const { scene } = useGLTF(MODEL_URL, '/draco/')
@@ -495,6 +377,14 @@ function FinalRouteModel({
         (_, index) => featuredBooks[index] ?? null,
       ),
     [featuredBooks],
+  )
+  const libraryLayout = useMemo(
+    () => layoutLibraryBooks(libraryBooks),
+    [libraryBooks],
+  )
+  const audioLayout = useMemo(
+    () => layoutAudioCases(libraryAudioStories),
+    [libraryAudioStories],
   )
   const firstBookCoverTexture = useSafeTexture(
     bookSlots[0]?.cover.src,
@@ -563,16 +453,8 @@ function FinalRouteModel({
       createInformationMaterials(bookCoverTextures, {
         audioStories,
         featuredBooks: bookSlots,
-        socialContent,
-        socialLinks,
       }),
-    [
-      audioStories,
-      bookCoverTextures,
-      bookSlots,
-      socialContent,
-      socialLinks,
-    ],
+    [audioStories, bookCoverTextures, bookSlots],
   )
   const assembly = useMemo(() => {
     const sourceAssembly = scene.getObjectByName(ASSEMBLY_NAME)
@@ -584,6 +466,52 @@ function FinalRouteModel({
     const preparedAssembly = sourceAssembly.clone(true)
     const materialCache = new Map()
 
+    extendCastle(preparedAssembly, FINAL_ROUTE_MASONRY)
+    REPLACED_OBJECT_NAMES.forEach((name) => {
+      preparedAssembly.getObjectByName(name)?.removeFromParent()
+    })
+    BOOK_FRAME_PLACEMENTS.forEach(({ position }, index) => {
+      const surface = preparedAssembly.getObjectByName(
+        `ProjectInteractionSurface_${String(index + 1).padStart(2, '0')}`,
+      )
+
+      if (surface) {
+        preparedAssembly.add(surface)
+        surface.position.set(...position)
+        surface.rotation.set(0, 0, 0)
+        surface.scale.setScalar(1)
+      }
+    })
+
+    const audioFrames = preparedAssembly.getObjectByName(
+      AUDIO_FRAMES_CLUSTER_NAME,
+    )
+    const audioWall = preparedAssembly.getObjectByName(AUDIO_WALL_NAME)
+
+    audioFrames?.position.set(...AUDIO_FRAMES_TRANSFORM.position)
+    audioFrames?.rotation.set(...AUDIO_FRAMES_TRANSFORM.rotation)
+
+    if (audioWall) {
+      const missingWall = audioWall.clone(true)
+
+      missingWall.position.set(...AUDIO_MISSING_WALL_POSITION)
+      preparedAssembly.add(missingWall)
+    }
+
+    const bookShelf = preparedAssembly.getObjectByName(SHELF_NAME)
+
+    if (bookShelf) {
+      const audioShelf = bookShelf.clone(true)
+
+      audioShelf.name = AUDIO_SHELF_NAME
+      audioShelf.position.set(...AUDIO_SHELF_TRANSFORM.position)
+      audioShelf.rotation.set(...AUDIO_SHELF_TRANSFORM.rotation)
+      audioShelf.scale.setScalar(AUDIO_SHELF_TRANSFORM.scale)
+      preparedAssembly.add(audioShelf)
+      clearShelfSpace(bookShelf, libraryLayout.clearedZones)
+      clearShelfSpace(audioShelf, audioLayout.clearedZones)
+    }
+
     preparedAssembly.traverse((object) => {
       if (!object.isMesh) {
         return
@@ -593,6 +521,7 @@ function FinalRouteModel({
 
       if (object.name === RUNNER_NAME) {
         object.material = runnerMaterial
+        object.raycast = ignoreRaycast
         return
       }
 
@@ -600,7 +529,9 @@ function FinalRouteModel({
       if (projectMatch) {
         const surfaceIndex = Number(projectMatch[1]) - 1
 
-        object.geometry = createBookSurfaceGeometry(surfaceIndex)
+        object.geometry = createDisplaySurfaceGeometry(
+          BOOK_SURFACE_LAYOUTS[surfaceIndex],
+        )
         object.userData.performanceOwnedGeometry = true
         object.material =
           informationMaterials.bookMaterials[surfaceIndex]
@@ -614,21 +545,23 @@ function FinalRouteModel({
 
       const socialMatch = SOCIAL_SURFACE_PATTERN.exec(object.name)
       if (socialMatch) {
+        object.geometry = createDisplaySurfaceGeometry(
+          AUDIO_SURFACE_LAYOUT,
+        )
+        object.userData.performanceOwnedGeometry = true
         object.material =
           informationMaterials.audioMaterials[
             Number(socialMatch[1]) - 1
           ]
+        object.renderOrder = 1
         object.userData.audioStoryId =
           audioStories[Number(socialMatch[1]) - 1]?.id
         return
       }
 
-      if (object.name === 'ContactInteractionSurface') {
-        object.material = informationMaterials.socialMaterial
-        object.userData.contentType = 'social'
-        return
-      }
-
+      // Only the information surfaces react to the pointer: skipping the rest
+      // avoids testing tens of thousands of triangles on every pointer move.
+      object.raycast = ignoreRaycast
       object.material = Array.isArray(object.material)
         ? object.material.map((material) =>
             prepareEntranceMaterial({
@@ -650,9 +583,11 @@ function FinalRouteModel({
 
     return preparedAssembly
   }, [
+    audioLayout,
     audioStories,
     bookSlots,
     informationMaterials,
+    libraryLayout,
     materialResources,
     runnerMaterial,
     scene,
@@ -674,15 +609,6 @@ function FinalRouteModel({
       if (audioInteractionEnabled && audioStoryId) {
         event.stopPropagation()
         onAudioStorySelect(audioStoryId)
-        return
-      }
-
-      if (
-        socialInteractionEnabled &&
-        objectName === 'ContactInteractionSurface'
-      ) {
-        event.stopPropagation()
-        onSocialOpen(null)
       }
     },
     [
@@ -692,8 +618,6 @@ function FinalRouteModel({
       bookInteractionEnabled,
       onAudioStorySelect,
       onBookSelect,
-      onSocialOpen,
-      socialInteractionEnabled,
     ],
   )
 
@@ -704,9 +628,7 @@ function FinalRouteModel({
         (bookInteractionEnabled &&
           getBookId(objectName, bookSlots)) ||
         (audioInteractionEnabled &&
-          getAudioStoryId(objectName, audioStories)) ||
-        (socialInteractionEnabled &&
-          objectName === 'ContactInteractionSurface')
+          getAudioStoryId(objectName, audioStories))
 
       if (interactive) {
         event.stopPropagation()
@@ -718,15 +640,13 @@ function FinalRouteModel({
       audioStories,
       bookSlots,
       bookInteractionEnabled,
-      socialInteractionEnabled,
     ],
   )
 
   const handlePointerOut = useCallback((event) => {
     if (
       getBookId(event.object.name, bookSlots) ||
-      getAudioStoryId(event.object.name, audioStories) ||
-      event.object.name === 'ContactInteractionSurface'
+      getAudioStoryId(event.object.name, audioStories)
     ) {
       document.body.style.cursor = ''
     }
@@ -742,21 +662,49 @@ function FinalRouteModel({
         return
       }
 
-      object.castShadow = PROJECT_SURFACE_PATTERN.test(object.name)
+      object.castShadow = DISPLAY_SURFACE_PATTERN.test(object.name)
         ? false
         : shouldCastObjectShadow(object.name, qualityLevel)
     })
+    requestRouteShadowRefresh()
   }, [assembly, qualityLevel])
 
   useEffect(() => {
     const materials = [
       ...informationMaterials.audioMaterials,
       ...informationMaterials.bookMaterials,
-      informationMaterials.socialMaterial,
     ]
 
     return retainGeneratedMaterials(materials)
   }, [informationMaterials])
+
+  useEffect(() => {
+    let active = true
+
+    informationMaterials.audioMaterials.forEach((material, index) => {
+      if (!audioStories[index]) {
+        return
+      }
+
+      loadAudioIllustration(audioStories[index]).then((illustration) => {
+        if (active && illustration) {
+          const canvas = material.map.image
+
+          drawBookSurface(
+            canvas.getContext('2d'),
+            illustration,
+            canvas.width,
+            canvas.height,
+          )
+          material.map.needsUpdate = true
+        }
+      })
+    })
+
+    return () => {
+      active = false
+    }
+  }, [audioStories, informationMaterials])
 
   useEffect(
     () =>
@@ -767,7 +715,6 @@ function FinalRouteModel({
               runnerMaterial,
               ...informationMaterials.audioMaterials,
               ...informationMaterials.bookMaterials,
-              informationMaterials.socialMaterial,
             ],
             { releaseSharedGeometries: true },
           )
@@ -789,15 +736,29 @@ function FinalRouteModel({
       dispose={null}
     >
       <primitive object={assembly} />
+      <OrnateBookFrames />
+      <ContactPhone
+        interactionEnabled={socialInteractionEnabled}
+        onOpen={onSocialOpen}
+      />
+      <AgendaBoard
+        events={agendaEvents}
+        interactionEnabled={socialInteractionEnabled}
+        onOpen={onAgendaOpen}
+      />
+      <AudioShelfCases
+        entries={audioLayout.entries}
+        interactionEnabled={audioInteractionEnabled}
+        onAudioStorySelect={onAudioStorySelect}
+        reducedMotionEnabled={reducedMotionEnabled}
+      />
+      <LibraryShelfBooks
+        entries={libraryLayout.entries}
+        interactionEnabled={bookInteractionEnabled}
+        onBookSelect={onBookSelect}
+        reducedMotionEnabled={reducedMotionEnabled}
+      />
     </group>
-  )
-}
-
-export function FinalRouteAsset(props) {
-  return (
-    <Suspense fallback={null}>
-      <FinalRouteModel {...props} />
-    </Suspense>
   )
 }
 

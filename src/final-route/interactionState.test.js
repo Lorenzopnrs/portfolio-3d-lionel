@@ -17,9 +17,12 @@ test('contextual panels follow the approved route order', () => {
   assert.equal(getContextualPanelId(null, true, false), 'archive')
   assert.equal(getContextualPanelId('about', true, false), 'archive')
   assert.equal(getContextualPanelId('about', false, false), null)
-  assert.equal(getContextualPanelId('projects', false, false), 'books')
+  assert.equal(getContextualPanelId('book1', false, false), null)
+  assert.equal(getContextualPanelId('projects', false, false), null)
+  assert.equal(getContextualPanelId('library', false, false), 'books')
   assert.equal(getContextualPanelId('social', false, false), 'audio')
   assert.equal(getContextualPanelId('contact', false, false), 'social')
+  assert.equal(getContextualPanelId('agenda', false, false), 'agenda')
   assert.equal(getContextualPanelId('contact', true, true), null)
 })
 

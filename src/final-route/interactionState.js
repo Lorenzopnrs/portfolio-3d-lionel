@@ -5,8 +5,9 @@ import {
 } from '../prototype/cameraPath.js'
 
 const STOP_PANEL_IDS = Object.freeze({
+  agenda: 'agenda',
   contact: 'social',
-  projects: 'books',
+  library: 'books',
   social: 'audio',
 })
 

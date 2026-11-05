@@ -11,14 +11,17 @@ export const QUALITY_OPTIONS = Object.freeze([
 export const QUALITY_SETTINGS = Object.freeze({
   high: Object.freeze({
     dpr: Object.freeze([1, 1.5]),
+    lightBudget: Object.freeze({ plain: 8, rect: 1, shadow: 4 }),
     maximumShadowMapSize: 512,
   }),
   medium: Object.freeze({
     dpr: Object.freeze([1, 1.25]),
+    lightBudget: Object.freeze({ plain: 6, rect: 1, shadow: 3 }),
     maximumShadowMapSize: 256,
   }),
   low: Object.freeze({
     dpr: 1,
+    lightBudget: Object.freeze({ plain: 4, rect: 0, shadow: 0 }),
     maximumShadowMapSize: 128,
   }),
 })

@@ -10,16 +10,19 @@ import {
 } from 'three'
 import { CATEGORY_SIGN_URL } from '../assets/runtimeAssetPaths.js'
 import { useSafeTexture } from '../assets/useSafeTexture.js'
+import { requestRouteShadowRefresh } from '../performance/routeLights'
 import {
   EVALUATION_STOPS,
   getPathPlacement,
 } from '../prototype/cameraPath'
+import { getSignSightRange } from './signSight.js'
 
 const SIGN_VISIBILITY_DISTANCE_SQUARED = 144
 const SIGN_CENTER_Y = 3.12
 const SIGN_CENTER_Z = -1.55
 const SIGN_ANCHOR_Y = 4.55
 const CHAIN_LINK_COUNT = 8
+const SIGN_GLOW_INTENSITY = 0.9
 
 const SIGN_WIDTHS = Object.freeze({
   about: 2.6,
@@ -34,7 +37,7 @@ const SIGN_PLANKS = Object.freeze([
   Object.freeze({ y: -0.26, height: 0.28, widthScale: 0.94, tilt: 0.009 }),
 ])
 const CATEGORY_STOPS = EVALUATION_STOPS.filter(
-  (stop) => stop.id !== 'entrance',
+  (stop) => stop.id in SIGN_WIDTHS,
 )
 
 function createWoodTexture(referenceTexture) {
@@ -113,7 +116,6 @@ function SignFace({ label, position, reducedMotionEnabled }) {
     <Html
       center
       distanceFactor={7}
-      occlude
       position={position}
       zIndexRange={[2, 0]}
     >
@@ -129,6 +131,7 @@ function SignFace({ label, position, reducedMotionEnabled }) {
 
 function SuspendedCategorySign({
   id,
+  isLabelVisible,
   isVisible,
   label,
   placement,
@@ -189,32 +192,20 @@ function SuspendedCategorySign({
         )),
       )}
 
-      {isVisible && (
-        <>
-          <SignFace
-            label={label}
-            position={[0, SIGN_CENTER_Y, SIGN_CENTER_Z + 0.092]}
-            reducedMotionEnabled={reducedMotionEnabled}
-          />
-          <SignFace
-            label={label}
-            position={[0, SIGN_CENTER_Y, SIGN_CENTER_Z - 0.092]}
-            reducedMotionEnabled={reducedMotionEnabled}
-          />
-          <pointLight
-            color="#9ecbd8"
-            decay={2}
-            distance={1.8}
-            intensity={0.75}
-            position={[0, SIGN_CENTER_Y, SIGN_CENTER_Z + 0.34]}
-          />
-        </>
+      {isLabelVisible && (
+        <SignFace
+          label={label}
+          position={[0, SIGN_CENTER_Y, SIGN_CENTER_Z + 0.092]}
+          reducedMotionEnabled={reducedMotionEnabled}
+        />
       )}
     </group>
   )
 }
 
 export function CategorySignage({
+  enabled = true,
+  progress = 0,
   qualityLevel = 'high',
   reducedMotionEnabled = false,
 }) {
@@ -232,6 +223,10 @@ export function CategorySignage({
     () =>
       new MeshStandardMaterial({
         color: '#744820',
+        // Replaces a dedicated light per sign, which would cost a light slot.
+        emissive: '#483a1b',
+        emissiveIntensity: SIGN_GLOW_INTENSITY,
+        emissiveMap: woodTexture,
         map: woodTexture,
         metalness: 0,
         roughness: 0.94,
@@ -250,11 +245,12 @@ export function CategorySignage({
   const signPlacements = useMemo(
     () =>
       CATEGORY_STOPS.map((stop) => {
-        const placement = getPathPlacement(stop.progress)
+        const placement = getPathPlacement(stop.signProgress)
         return {
           ...stop,
           placement,
           position: new Vector3(...placement.position),
+          sightRange: getSignSightRange(stop.signProgress),
         }
       }),
     [],
@@ -281,6 +277,7 @@ export function CategorySignage({
     ) {
       visibilityRef.current = nextVisibility
       setVisibleSigns(nextVisibility)
+      requestRouteShadowRefresh()
     }
   })
 
@@ -298,6 +295,11 @@ export function CategorySignage({
       key={sign.id}
       {...sign}
       ironMaterial={ironMaterial}
+      isLabelVisible={
+        enabled &&
+        progress >= sign.sightRange.start &&
+        progress <= sign.sightRange.end
+      }
       isVisible={visibleSigns[index]}
       qualityLevel={qualityLevel}
       reducedMotionEnabled={reducedMotionEnabled}

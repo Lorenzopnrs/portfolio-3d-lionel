@@ -1,5 +1,9 @@
-import { Suspense, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
+import {
+  PROVENANCE_MASONRY,
+  extendCastle,
+} from '../final-route/castleMasonry.js'
 import { shouldCastObjectShadow } from '../performance/qualitySettings'
 import {
   createEntranceMaterialResources,
@@ -65,7 +69,7 @@ function prepareGalleryMaterial(options) {
   return material
 }
 
-function ProvenanceGalleryModel({ qualityLevel = 'high', ...props }) {
+export function ProvenanceGalleryAsset({ qualityLevel = 'high', ...props }) {
   const { scene } = useGLTF(MODEL_URL, '/draco/')
   const { scene: entranceScene } = useGLTF(
     ENTRANCE_MODEL_URL,
@@ -101,6 +105,8 @@ function ProvenanceGalleryModel({ qualityLevel = 'high', ...props }) {
 
     const preparedAssembly = sourceAssembly.clone(true)
     const materialCache = new Map()
+
+    extendCastle(preparedAssembly, PROVENANCE_MASONRY)
 
     preparedAssembly.traverse((object) => {
       if (!object.isMesh) {
@@ -169,14 +175,6 @@ function ProvenanceGalleryModel({ qualityLevel = 'high', ...props }) {
     <group name="blender-provenance-gallery" {...props} dispose={null}>
       <primitive object={assembly} />
     </group>
-  )
-}
-
-export function ProvenanceGalleryAsset(props) {
-  return (
-    <Suspense fallback={null}>
-      <ProvenanceGalleryModel {...props} />
-    </Suspense>
   )
 }
 

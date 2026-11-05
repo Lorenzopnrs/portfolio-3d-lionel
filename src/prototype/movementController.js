@@ -3,6 +3,7 @@ import {
   INITIAL_PROGRESS,
   PATH_LENGTH,
   clampProgress,
+  getRouteSpeedFactor,
 } from './cameraPath.js'
 
 const REFERENCE_PATH_LENGTH = 57.466
@@ -23,6 +24,22 @@ const STOP_PROGRESS_THRESHOLD = 0.003 * PATH_PROGRESS_SCALE
 const STOP_SNAP_DISTANCE = 0.0012 * PATH_PROGRESS_SCALE
 const STOP_SNAP_VELOCITY = 0.012 * PATH_PROGRESS_SCALE
 const STOP_APPROACH_VELOCITY = 0.075 * PATH_PROGRESS_SCALE
+const STOP_REACHED_DISTANCE = 0.006 * PATH_PROGRESS_SCALE
+// A held stop lets go after three wheel notches (each one counts for 48).
+const HOLD_RELEASE_CHARGE = 130
+const HOLD_DIRECTIONAL_CHARGE = 70
+const HOLD_KEY_CHARGE_PER_SECOND = 190
+// Ignores the end of the scroll that brought the visitor here.
+const HOLD_SETTLE_MILLISECONDS = 350
+const HOLD_NUDGE = 0.016 * PATH_PROGRESS_SCALE
+const HOLD_SPRING = 70
+const HOLD_DAMPING = 14
+const HOLD_BRAKE_DISTANCE = 0.05 * PATH_PROGRESS_SCALE
+const HOLD_BRAKE_RATE = 2
+const HOLD_MINIMUM_APPROACH = 0.02 * PATH_PROGRESS_SCALE
+const HOLD_CAPTURE_DISTANCE = 0.0015 * PATH_PROGRESS_SCALE
+// Keeps the travel speed unchanged on phones rendering down to 15 frames/s.
+const MAXIMUM_FRAME_DELTA = 1 / 15
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -90,12 +107,137 @@ function stepReducedMotion(controller, direction) {
   startReducedTransition(controller, targetStopIndex)
 }
 
+function enterHold(controller, stopIndex) {
+  controller.progress = EVALUATION_STOPS[stopIndex].progress
+  controller.velocity = 0
+  controller.activeStopIndex = stopIndex
+  controller.holdStopIndex = stopIndex
+  controller.holdCharge = 0
+  controller.holdDirection = 0
+  controller.holdStartTime = performance.now()
+  controller.releasedStopIndex = null
+}
+
+function clearHold(controller) {
+  controller.holdStopIndex = null
+  controller.holdCharge = 0
+  controller.holdDirection = 0
+}
+
+// Returns true while the stop keeps the visitor, who feels a slight push.
+function chargeHeldStop(controller, direction, amount, nudge = true) {
+  if (controller.holdStopIndex === null) {
+    return false
+  }
+
+  if (
+    performance.now() - controller.holdStartTime <
+    HOLD_SETTLE_MILLISECONDS
+  ) {
+    return true
+  }
+
+  if (direction !== controller.holdDirection) {
+    controller.holdDirection = direction
+    controller.holdCharge = 0
+  }
+
+  controller.holdCharge += amount
+
+  if (controller.holdCharge < HOLD_RELEASE_CHARGE) {
+    if (nudge) {
+      controller.velocity += direction * HOLD_NUDGE
+    }
+
+    return true
+  }
+
+  controller.releasedStopIndex = controller.holdStopIndex
+  controller.releasedDirection = direction
+  clearHold(controller)
+  controller.activeStopIndex = null
+  controller.velocity = 0
+  controller.progress = clampProgress(
+    controller.progress + direction * RELEASE_DISTANCE,
+  )
+  return false
+}
+
+function findHoldStopAhead(controller, direction) {
+  let found = null
+  let foundDistance = Infinity
+
+  EVALUATION_STOPS.forEach((stop, index) => {
+    const distance = (stop.progress - controller.progress) * direction
+
+    // Coming back to a book just left stops on it again.
+    const leavingThisStop =
+      index === controller.releasedStopIndex &&
+      direction === controller.releasedDirection
+
+    if (
+      stop.hold &&
+      !leavingThisStop &&
+      distance >= -HOLD_CAPTURE_DISTANCE &&
+      distance <= HOLD_BRAKE_DISTANCE &&
+      distance < foundDistance
+    ) {
+      found = index
+      foundDistance = distance
+    }
+  })
+
+  return found
+}
+
+function updateHeldStop(controller, delta) {
+  if (controller.keyboardDirection !== 0) {
+    chargeHeldStop(
+      controller,
+      controller.keyboardDirection,
+      HOLD_KEY_CHARGE_PER_SECOND * delta,
+      false,
+    )
+  }
+
+  if (controller.holdStopIndex === null) {
+    return
+  }
+
+  const stopProgress = EVALUATION_STOPS[controller.holdStopIndex].progress
+
+  controller.velocity +=
+    (stopProgress - controller.progress) * HOLD_SPRING * delta
+  controller.velocity *= Math.exp(-HOLD_DAMPING * delta)
+  controller.progress = clampProgress(
+    controller.progress + controller.velocity * delta,
+  )
+  controller.activeStopIndex = controller.holdStopIndex
+}
+
 function releaseStop(controller, direction) {
   if (controller.activeStopIndex !== null) {
     controller.progress = clampProgress(
       controller.progress + direction * RELEASE_DISTANCE,
     )
+    controller.releasedStopIndex = controller.activeStopIndex
     controller.activeStopIndex = null
+    return
+  }
+
+  const nearestStopIndex = getNearestStopIndex(controller.progress)
+  const distanceAhead =
+    (EVALUATION_STOPS[nearestStopIndex].progress - controller.progress) *
+    direction
+
+  // Already at the stop or past it: the visitor is leaving, even if the spring
+  // had not finished settling them. A held stop only lets go once charged.
+  if (
+    !EVALUATION_STOPS[nearestStopIndex].hold &&
+    distanceAhead < STOP_REACHED_DISTANCE &&
+    distanceAhead > -STOP_RADIUS
+  ) {
+    controller.releasedStopIndex = nearestStopIndex
   }
 }
 
@@ -110,6 +252,12 @@ export function createMovementState() {
     velocity: 0,
     keyboardDirection: 0,
     activeStopIndex: null,
+    releasedStopIndex: null,
+    releasedDirection: 0,
+    holdStopIndex: null,
+    holdCharge: 0,
+    holdDirection: 0,
+    holdStartTime: 0,
     reducedMotion: false,
     lastReducedWheelTime: -Infinity,
     lastInputTime: -Infinity,
@@ -124,6 +272,8 @@ export function resetMovementToStart(controller) {
   controller.velocity = 0
   controller.keyboardDirection = 0
   controller.activeStopIndex = null
+  controller.releasedStopIndex = null
+  clearHold(controller)
   controller.lastReducedWheelTime = -Infinity
   controller.lastInputTime = -Infinity
   controller.transition = null
@@ -136,6 +286,7 @@ export function setReducedMotion(controller, enabled) {
   controller.reducedMotion = enabled
   controller.velocity = 0
   controller.keyboardDirection = 0
+  clearHold(controller)
   controller.lastReducedWheelTime = -Infinity
   controller.transition = null
 
@@ -197,6 +348,10 @@ export function applyWheelInput(controller, deltaY, deltaMode) {
     return true
   }
 
+  if (chargeHeldStop(controller, direction, Math.abs(delta))) {
+    return true
+  }
+
   releaseStop(controller, direction)
   controller.transition = null
   controller.lastInputTime = now
@@ -219,6 +374,10 @@ export function applyDirectionalInput(controller, direction) {
     return
   }
 
+  if (chargeHeldStop(controller, direction, HOLD_DIRECTIONAL_CHARGE)) {
+    return
+  }
+
   releaseStop(controller, direction)
   controller.lastInputTime = performance.now()
   controller.velocity = clamp(
@@ -236,7 +395,11 @@ export function setKeyboardDirection(controller, direction) {
 
   controller.keyboardDirection = direction
 
-  if (direction !== 0 && !controller.reducedMotion) {
+  if (
+    direction !== 0 &&
+    !controller.reducedMotion &&
+    controller.holdStopIndex === null
+  ) {
     releaseStop(controller, direction)
     controller.lastInputTime = performance.now()
   }
@@ -250,7 +413,7 @@ export function updateMovement(controller, frameDelta) {
     return
   }
 
-  const delta = Math.min(frameDelta, 1 / 30)
+  const delta = Math.min(frameDelta, MAXIMUM_FRAME_DELTA)
 
   if (controller.reducedMotion) {
     if (!controller.transition) {
@@ -277,6 +440,11 @@ export function updateMovement(controller, frameDelta) {
     return
   }
 
+  if (controller.holdStopIndex !== null) {
+    updateHeldStop(controller, delta)
+    return
+  }
+
   if (controller.keyboardDirection !== 0) {
     controller.velocity = clamp(
       controller.velocity +
@@ -288,8 +456,49 @@ export function updateMovement(controller, frameDelta) {
     controller.velocity *= Math.exp(-DECELERATION * delta)
   }
 
+  if (
+    controller.releasedStopIndex !== null &&
+    Math.abs(
+      EVALUATION_STOPS[controller.releasedStopIndex].progress -
+        controller.progress,
+    ) > STOP_RADIUS
+  ) {
+    controller.releasedStopIndex = null
+  }
+
+  const travelDirection = Math.sign(controller.velocity)
+  const holdStopAhead =
+    travelDirection === 0
+      ? null
+      : findHoldStopAhead(controller, travelDirection)
+  const speedFactor = getRouteSpeedFactor(controller.progress)
+
+  // However fast the visitor scrolls, the camera brakes and stops at each one.
+  if (holdStopAhead !== null) {
+    const distance = Math.abs(
+      EVALUATION_STOPS[holdStopAhead].progress - controller.progress,
+    )
+    const maximumSpeed =
+      Math.max(HOLD_MINIMUM_APPROACH, distance * HOLD_BRAKE_RATE) /
+      speedFactor
+
+    controller.velocity = clamp(
+      controller.velocity,
+      -maximumSpeed,
+      maximumSpeed,
+    )
+
+    if (
+      distance <= HOLD_CAPTURE_DISTANCE ||
+      distance <= Math.abs(controller.velocity) * speedFactor * delta
+    ) {
+      enterHold(controller, holdStopAhead)
+      return
+    }
+  }
+
   controller.progress = clampProgress(
-    controller.progress + controller.velocity * delta,
+    controller.progress + controller.velocity * speedFactor * delta,
   )
 
   if (
@@ -315,12 +524,26 @@ export function updateMovement(controller, frameDelta) {
   const nearestStop = EVALUATION_STOPS[nearestStopIndex]
   const stopDistance = nearestStop.progress - controller.progress
 
-  if (Math.abs(stopDistance) > STOP_RADIUS) {
+  if (
+    Math.abs(stopDistance) > STOP_RADIUS ||
+    nearestStopIndex !== controller.releasedStopIndex
+  ) {
+    controller.releasedStopIndex = null
+  }
+
+  // A stop welcomes the visitor arriving, but never holds back one leaving it.
+  if (
+    Math.abs(stopDistance) > STOP_RADIUS ||
+    nearestStopIndex === controller.releasedStopIndex
+  ) {
     controller.activeStopIndex = null
     return
   }
 
-  controller.velocity += stopDistance * STOP_SPRING * delta
+  // Compensated so a stop settles just as fast where the route slows down.
+  controller.velocity +=
+    (stopDistance * STOP_SPRING * delta) /
+    getRouteSpeedFactor(controller.progress)
   controller.velocity *= Math.exp(-STOP_DAMPING * delta)
 
   if (
@@ -330,5 +553,9 @@ export function updateMovement(controller, frameDelta) {
     controller.progress = nearestStop.progress
     controller.velocity = 0
     controller.activeStopIndex = nearestStopIndex
+
+    if (nearestStop.hold) {
+      enterHold(controller, nearestStopIndex)
+    }
   }
 }

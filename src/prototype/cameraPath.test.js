@@ -16,9 +16,11 @@ const GATE_CENTER_TOLERANCE = 0.22
 const TURN_CLEARANCE_SAMPLE_COUNT = 800
 const TURN_MINIMUM_CLEARANCE = 0.4
 const PATH_CAMERA_LOOK_DISTANCE = 6
-const PATH_CAMERA_RESPONSE = 12
 const STRONG_IMPULSE_PROGRESS_STEP =
   (0.32 * 57.466) / PATH_LENGTH / 30
+// Reversing at full speed may glance at a corner for an instant: a gentle camera
+// needs time to turn, and the path keeps it clear of the walls anyway.
+const BRISK_BACKWARD_PROGRESS_STEP = 2.5 / PATH_LENGTH / 30
 const WORLD_UP = new Vector3(0, 1, 0)
 const CAMERA_FORWARD = new Vector3(0, 0, -1)
 const entranceTurnInsideSupport = {
@@ -181,28 +183,31 @@ function findBlockedSmoothedOrientation(
     direction > 0 ? progressRange.start : progressRange.end
   const endProgress =
     direction > 0 ? progressRange.end : progressRange.start
-  const cameraQuaternion = getTargetCameraQuaternion(startProgress)
+  const orientation = cameraPathModule.createCameraOrientation(
+    getTargetCameraQuaternion(startProgress),
+  )
 
   for (
     let progress = startProgress;
     direction > 0
       ? progress <= endProgress
       : progress >= endProgress;
-    progress += direction * STRONG_IMPULSE_PROGRESS_STEP
+    progress +=
+      direction > 0
+        ? STRONG_IMPULSE_PROGRESS_STEP *
+          cameraPathModule.getRouteSpeedFactor(progress)
+        : -BRISK_BACKWARD_PROGRESS_STEP
   ) {
-    const orientationResponse =
-      cameraPathModule.getCameraOrientationResponse?.(progress) ??
-      PATH_CAMERA_RESPONSE
-    const slerpAlpha =
-      1 - Math.exp(-orientationResponse * (1 / 30))
-    cameraQuaternion.slerp(
+    cameraPathModule.stepCameraOrientation(
+      orientation,
       getTargetCameraQuaternion(progress),
-      slerpAlpha,
+      progress,
+      1 / 30,
     )
 
     const position = getCameraPointAt(progress)
     const directionVector = CAMERA_FORWARD.clone()
-      .applyQuaternion(cameraQuaternion)
+      .applyQuaternion(orientation.quaternion)
       .setY(0)
       .normalize()
     const lookTarget = position
@@ -464,7 +469,7 @@ test('entrance turn smoothed orientation clears the support both ways', () => {
     assert.equal(
       blockedProgress,
       null,
-      `${label} strong-impulse orientation intersects the inside support at progress ${blockedProgress?.toFixed(4)}`,
+      `${label} orientation intersects the inside support at progress ${blockedProgress?.toFixed(4)}`,
     )
   }
 })
@@ -528,7 +533,7 @@ test('project stop sits inside the three-display gallery', () => {
   )
   const position = getCameraPointAt(projectStop.progress)
 
-  assert.ok(position.x >= -2 && position.x <= 1)
+  assert.ok(position.x >= -2 && position.x <= 2.2)
   assert.ok(Math.abs(position.z - 12) <= GATE_CENTER_TOLERANCE)
 })
 

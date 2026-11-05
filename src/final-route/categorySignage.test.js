@@ -18,14 +18,29 @@ const archiveDialogPath = `${root}src/final-route/ArchiveDialog.jsx`
 test('route categories exclude the portal-only About destination', () => {
   assert.deepEqual(
     EVALUATION_STOPS.map((stop) => stop.id),
-    ['entrance', 'projects', 'social', 'contact'],
+    [
+      'entrance',
+      'book1',
+      'book2',
+      'projects',
+      'library',
+      'audioFrames',
+      'social',
+      'contact',
+      'agenda',
+    ],
   )
   assert.deepEqual(
     EVALUATION_STOPS.slice(1).map((stop) => stop.label),
     [
+      'LIVRE 1',
+      'LIVRE 2',
       'LIVRES',
+      'BIBLIOTHÈQUE',
+      'GALERIE D’ÉCOUTE',
       'HISTOIRES AUDIOS',
       'RESEAUX SOCIAUX',
+      'AGENDA',
     ],
   )
 })

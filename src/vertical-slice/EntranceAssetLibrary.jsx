@@ -1,5 +1,9 @@
-import { Suspense, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
+import {
+  ENTRANCE_MASONRY,
+  extendCastle,
+} from '../final-route/castleMasonry.js'
 import { shouldCastObjectShadow } from '../performance/qualitySettings'
 import {
   createEntranceMaterialResources,
@@ -37,8 +41,7 @@ function collectSourceMaterials(scene) {
   return sourceMaterials
 }
 
-function EntranceAssemblyModel({
-  onReady,
+export function EntranceAssetLibrary({
   qualityLevel = 'high',
   ...props
 }) {
@@ -85,6 +88,7 @@ function EntranceAssemblyModel({
       }
 
       destinationDoor.visible = false
+      extendCastle(preparedAssembly, ENTRANCE_MASONRY)
 
       preparedAssembly.traverse((object) => {
         if (!object.isMesh) {
@@ -142,12 +146,6 @@ function EntranceAssemblyModel({
     })
   }, [assembly, qualityLevel])
 
-  useEffect(() => {
-    if (assembly) {
-      onReady?.()
-    }
-  }, [assembly, onReady])
-
   useEffect(
     () =>
       assembly
@@ -166,14 +164,6 @@ function EntranceAssemblyModel({
     <group name="blender-entrance-asset-library" {...props} dispose={null}>
       <primitive object={assembly} />
     </group>
-  )
-}
-
-export function EntranceAssetLibrary(props) {
-  return (
-    <Suspense fallback={null}>
-      <EntranceAssemblyModel {...props} />
-    </Suspense>
   )
 }
 

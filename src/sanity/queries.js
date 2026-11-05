@@ -35,6 +35,18 @@ export const PORTFOLIO_CONTENT_QUERY = `{
     },
     "image": image.asset->{url}
   },
+  "agendaEvents": *[_type == "agendaEvent" && published == true] | order(startDate asc){
+    _id,
+    title,
+    startDate,
+    endDate,
+    time,
+    venue,
+    city,
+    description,
+    url,
+    published
+  },
   "socialLinks": *[_type == "socialLink" && active == true] | order(displayOrder asc, label asc){
     _id,
     label,

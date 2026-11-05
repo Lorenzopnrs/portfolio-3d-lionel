@@ -20,7 +20,7 @@ npm run preview
 
 ## Sanity Studio
 
-Le Studio existant se trouve dans `studio/` et utilise le projet `43dsdcuf` avec le dataset `production`.
+Le Studio existant se trouve dans `studio/` et utilise le projet `43dsdcuf` avec le dataset `production`. Il est en ligne sur <https://portfolio-lionel-chiry.sanity.studio>. `npm run deploy` depuis `studio/` y publie les changements de `schemaTypes/` et de `structure.ts`.
 
 ```bash
 cd studio
@@ -34,6 +34,7 @@ Le Studio permet de gérer exclusivement:
 - `LIVRES`
 - `HISTOIRES AUDIOS`
 - `RESEAUX SOCIAUX`
+- `AGENDA`
 
 ## Migration éditoriale
 
@@ -56,9 +57,25 @@ Les fichiers locaux sous `public/categories/` et les données de `src/content/po
 5. Activer `published` pour rendre le livre visible.
 6. Publier le document dans Sanity Studio.
 
-Tout livre publié apparaît automatiquement dans `VOIR TOUTE LA BIBLIOTHÈQUE`. Aucun changement de code ou d’architecture n’est nécessaire.
+Tout livre publié apparaît automatiquement dans `VOIR TOUTE LA BIBLIOTHÈQUE` et sur la bibliothèque 3D au bout de la galerie, dans l’ordre de `displayOrder`. La couleur de sa tranche vient de sa couverture, et un `:` dans le titre sépare le titre du sous-titre sur la tranche. Aucun changement de code ou d’architecture n’est nécessaire.
 
 Pour placer un livre dans l’un des trois cadres physiques, activer `featured` et choisir une valeur `featuredOrder` entre `1` et `3`. Le frontend trie ces livres et limite toujours le rendu à trois emplacements.
+
+## Ajouter une histoire audio
+
+Toute histoire publiée dans `HISTOIRES AUDIOS` apparaît automatiquement sur la bibliothèque au fond de la salle audio, dans l’ordre de `displayOrder`. Les trois premières sont aussi affichées dans les cadres du mur de gauche.
+
+L’illustration provient du champ `image` de Sanity. S’il est vide, le site utilise la miniature de la vidéo YouTube et retire ses bandes noires. Sans image ni vidéo, une carte affiche le titre.
+
+## Ajouter une date à l’agenda
+
+1. Ouvrir `AGENDA` dans Sanity Studio et créer un document.
+2. Renseigner la date, les horaires et le nom de l’événement ou du lieu.
+3. Cliquer sur `Publish`.
+
+La date apparaît seule sur le tableau et dans la fiche `Agenda`, triée par date, au prochain chargement du site. Sanity peut mettre environ une minute à la diffuser. Une date passée disparaît seule le lendemain de son dernier jour.
+
+Les dates de `agendaEvents` dans `src/content/portfolioContent.js` ne servent que si Sanity est injoignable: l’agenda se gère uniquement dans le Studio.
 
 ## Variables Render
 

@@ -404,6 +404,25 @@
   user-select: none;
 }
 
+.library-book-label {
+  display: grid;
+  gap: 2px;
+  width: 230px;
+  padding: 8px 12px;
+  border: 1px solid rgb(228 201 138 / 45%);
+  border-radius: 4px;
+  color: #f1e4c4;
+  background: rgb(18 13 9 / 88%);
+  font: 600 15px/1.2 var(--display-font);
+  text-align: center;
+  pointer-events: none;
+}
+
+.library-book-label small {
+  color: #c9b483;
+  font: 500 11px/1.2 var(--body-font);
+}
+
 .category-sign-label.is-long {
   width: 264px;
   font-size: 15px;
@@ -1024,6 +1043,61 @@ img[data-asset-fallback='true'] {
   width: min(760px, 100%);
 }
 
+.agenda-body {
+  padding: 34px 52px 50px;
+}
+
+.agenda-body > p {
+  max-width: 54ch;
+  margin: 0;
+}
+
+.agenda-list {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agenda-list li {
+  padding: 16px 18px;
+  border: 1px solid rgb(228 201 138 / 28%);
+  border-radius: 4px;
+}
+
+.agenda-list h3 {
+  margin: 4px 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.agenda-list p {
+  margin: 4px 0 0;
+}
+
+.agenda-list .agenda-date {
+  margin: 0;
+  color: #e4c98a;
+  font-weight: 600;
+}
+
+.agenda-list .agenda-place {
+  font-style: italic;
+}
+
+.agenda-list a {
+  display: inline-block;
+  margin-top: 8px;
+  color: #e4c98a;
+}
+
+@media (max-width: 640px) {
+  .agenda-body {
+    padding: 24px 22px 34px;
+  }
+}
+
 .social-detail-body {
   padding: 34px 52px 50px;
 }
@@ -1576,6 +1650,11 @@ img[data-asset-fallback='true'] {
 
   .content-access-panel-wide {
     width: min(320px, calc(100% - 32px));
+  }
+
+  /* The bookcase stays visible; its button opens the same list. */
+  .content-access-panel-books {
+    display: none;
   }
 
   .archive-dialog-backdrop {

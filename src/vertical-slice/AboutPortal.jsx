@@ -548,14 +548,6 @@ export function MagicalPortal({
         />
       </mesh>
 
-      <pointLight
-        color="#7189d2"
-        decay={2}
-        distance={4.6}
-        intensity={10.5}
-        position={[0, 1.72, 0.42]}
-      />
-
       <PortalTitle
         name={titleName}
         onActivate={handleActivate}
@@ -594,6 +586,7 @@ export function MagicalPortal({
 
 export function AboutPortal({
   animationEnabled = true,
+  interactionEnabled = true,
   onActivate,
   reducedMotionEnabled,
 }) {
@@ -602,6 +595,7 @@ export function AboutPortal({
       animationEnabled={animationEnabled}
       ariaLabel="Ouvrir A PROPOS DE MOI"
       groupName="about-me-portal"
+      interactionEnabled={interactionEnabled}
       onActivate={onActivate}
       position={ABOUT_PORTAL_POSITION}
       reducedMotionEnabled={reducedMotionEnabled}

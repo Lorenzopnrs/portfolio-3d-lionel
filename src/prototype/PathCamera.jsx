@@ -1,32 +1,40 @@
 import { useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { Matrix4, Quaternion, Vector3 } from 'three'
 import {
   PATH_LENGTH,
   applyCameraFocusTarget,
   cameraPath,
+  createCameraOrientation,
+  getCameraFieldOfView,
   getCameraLookAheadDistance,
-  getCameraOrientationResponse,
   getCameraPointAt,
+  getRestingFieldOfView,
+  stepCameraOrientation,
 } from './cameraPath'
 import { updateMovement } from './movementController'
 
 const WORLD_UP = new Vector3(0, 1, 0)
+// Far more than a frame can travel: only the return to the start jumps this far.
+const TELEPORT_PROGRESS = 0.1
+const ZOOM_RESPONSE = 2.6
 
 export function PathCamera({ movementRef, onTelemetry }) {
-  const camera = useThree((state) => state.camera)
   const position = useRef(new Vector3())
   const tangent = useRef(new Vector3())
   const lookAheadPoint = useRef(new Vector3())
   const lookTarget = useRef(new Vector3())
   const lookMatrix = useRef(new Matrix4())
   const targetQuaternion = useRef(new Quaternion())
+  const orientation = useRef(null)
+  const previousProgress = useRef(0)
   const lastReport = useRef({
     progress: -1,
     activeStopIndex: null,
   })
 
-  useFrame((_, delta) => {
+  // Runs first so everything else in the frame reads the current camera.
+  useFrame(({ camera }, delta) => {
     const movement = movementRef.current
     updateMovement(movement, delta)
 
@@ -53,13 +61,12 @@ export function PathCamera({ movementRef, onTelemetry }) {
       .addScaledVector(tangent.current, 6)
     lookTarget.current.y = position.current.y
 
-    if (!movement.reducedMotion) {
-      applyCameraFocusTarget(
-        movement.progress,
-        position.current,
-        lookTarget.current,
-      )
-    }
+    applyCameraFocusTarget(
+      movement.progress,
+      position.current,
+      lookTarget.current,
+      !movement.reducedMotion,
+    )
 
     lookMatrix.current.lookAt(
       position.current,
@@ -67,20 +74,42 @@ export function PathCamera({ movementRef, onTelemetry }) {
       WORLD_UP,
     )
     targetQuaternion.current.setFromRotationMatrix(lookMatrix.current)
-    const orientationResponse = getCameraOrientationResponse(
-      movement.progress,
-      !movement.reducedMotion,
-    )
 
+    const teleported =
+      !orientation.current ||
+      Math.abs(movement.progress - previousProgress.current) >
+        TELEPORT_PROGRESS
+
+    if (teleported) {
+      orientation.current = createCameraOrientation(
+        targetQuaternion.current,
+      )
+    } else {
+      stepCameraOrientation(
+        orientation.current,
+        targetQuaternion.current,
+        movement.progress,
+        delta,
+      )
+    }
+
+    previousProgress.current = movement.progress
     camera.position.copy(position.current)
-    camera.quaternion.slerp(
-      targetQuaternion.current,
-      1 -
-        Math.exp(
-          -orientationResponse * Math.min(delta, 1 / 30),
-        ),
-    )
+    camera.quaternion.copy(orientation.current.quaternion)
     camera.up.copy(WORLD_UP)
+
+    const targetFieldOfView = movement.reducedMotion
+      ? getRestingFieldOfView(camera.aspect)
+      : getCameraFieldOfView(movement.progress, camera.aspect)
+
+    if (Math.abs(camera.fov - targetFieldOfView) > 0.01) {
+      camera.fov = teleported
+        ? targetFieldOfView
+        : camera.fov +
+          (targetFieldOfView - camera.fov) *
+            (1 - Math.exp(-ZOOM_RESPONSE * Math.min(delta, 1 / 15)))
+      camera.updateProjectionMatrix()
+    }
 
     const progressChanged =
       Math.abs(movement.progress - lastReport.current.progress) >= 0.005
@@ -94,7 +123,7 @@ export function PathCamera({ movementRef, onTelemetry }) {
       }
       onTelemetry(lastReport.current)
     }
-  })
+  }, -1)
 
   return null
 }

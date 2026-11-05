@@ -6,11 +6,17 @@ import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const readProjectFile = (path) => readFileSync(`${root}${path}`, 'utf8')
 
-test('Studio registers the four editorial document types', () => {
+test('Studio registers the five editorial document types', () => {
   const indexSource = readProjectFile('studio/schemaTypes/index.ts')
   const bookSource = readProjectFile('studio/schemaTypes/book.ts')
 
-  for (const typeName of ['about', 'book', 'audioStory', 'socialLink']) {
+  for (const typeName of [
+    'about',
+    'agendaEvent',
+    'book',
+    'audioStory',
+    'socialLink',
+  ]) {
     assert.match(indexSource, new RegExp(typeName))
     assert.match(
       readProjectFile(`studio/schemaTypes/${typeName}.ts`),
@@ -41,6 +47,14 @@ test('frontend integration keeps Sanity primary and local content as fallback', 
   assert.match(querySource, /displayOrder/)
   assert.match(querySource, /published/)
   assert.doesNotMatch(routeAssetSource, /from '..\/content\/portfolioContent'/)
+})
+
+test('the general migration leaves the agenda to the Studio', () => {
+  const migrationSource = readProjectFile(
+    'studio/scripts/migrateContent.mjs',
+  )
+
+  assert.doesNotMatch(migrationSource, /agendaEvent/)
 })
 
 test('migration uses deterministic documents and the existing local assets', () => {

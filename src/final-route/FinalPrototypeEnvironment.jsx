@@ -1,29 +1,24 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
+import { RouteLightRig } from '../performance/RouteLightRig'
+import { SceneWarmup } from '../performance/SceneWarmup'
 import { EntranceVerticalSlice } from '../vertical-slice/EntranceVerticalSlice'
-
-const ProvenanceGallery = lazy(() =>
-  import('../vertical-slice/ProvenanceGallery').then((module) => ({
-    default: module.ProvenanceGallery,
-  })),
-)
-const FinalRouteEnvironment = lazy(() =>
-  import('./FinalRouteEnvironment').then((module) => ({
-    default: module.FinalRouteEnvironment,
-  })),
-)
-const CategorySignage = lazy(() =>
-  import('./CategorySignage').then((module) => ({
-    default: module.CategorySignage,
-  })),
-)
+import { ProvenanceGallery } from '../vertical-slice/ProvenanceGallery'
+import { CategorySignage } from './CategorySignage'
+import { FinalRouteEnvironment } from './FinalRouteEnvironment'
 
 export function FinalPrototypeEnvironment({
+  agendaEvents,
   audioStories,
   audioInteractionEnabled,
+  contentSettled,
+  entranceReady,
   featuredBooks,
   bookInteractionEnabled,
-  entranceReady,
+  libraryAudioStories,
+  libraryBooks,
+  lightQuality,
   onAboutOpen,
+  onAgendaOpen,
   onAudioStorySelect,
   onBookSelect,
   onEntranceReady,
@@ -33,54 +28,60 @@ export function FinalPrototypeEnvironment({
   qualityLevel,
   reducedMotionEnabled,
   sectionVisibility,
-  socialContent,
   socialInteractionEnabled,
-  socialLinks,
 }) {
   return (
-    <>
-      {sectionVisibility.entrance && (
+    <Suspense fallback={null}>
+      <group visible={sectionVisibility.entrance}>
         <EntranceVerticalSlice
+          aboutInteractionEnabled={sectionVisibility.entrance}
           onAboutOpen={onAboutOpen}
-          onReady={onEntranceReady}
           portalAnimationEnabled={progress < 0.36}
           qualityLevel={qualityLevel}
           reducedMotionEnabled={reducedMotionEnabled}
         />
-      )}
-      <Suspense fallback={null}>
-        {entranceReady && sectionVisibility.provenance && (
-          <ProvenanceGallery qualityLevel={qualityLevel} />
-        )}
-      </Suspense>
-      <Suspense fallback={null}>
-        {sectionVisibility.finalRoute && (
-          <FinalRouteEnvironment
-            audioStories={audioStories}
-            audioInteractionEnabled={audioInteractionEnabled}
-            featuredBooks={featuredBooks}
-            bookInteractionEnabled={bookInteractionEnabled}
-            onAudioStorySelect={onAudioStorySelect}
-            onBookSelect={onBookSelect}
-            onLoopActivate={onLoopActivate}
-            onSocialOpen={onSocialOpen}
-            progress={progress}
-            qualityLevel={qualityLevel}
-            reducedMotionEnabled={reducedMotionEnabled}
-            socialContent={socialContent}
-            socialInteractionEnabled={socialInteractionEnabled}
-            socialLinks={socialLinks}
-          />
-        )}
-      </Suspense>
-      <Suspense fallback={null}>
-        {sectionVisibility.signage && (
-          <CategorySignage
-            qualityLevel={qualityLevel}
-            reducedMotionEnabled={reducedMotionEnabled}
-          />
-        )}
-      </Suspense>
-    </>
+      </group>
+      <group visible={sectionVisibility.provenance}>
+        <ProvenanceGallery qualityLevel={qualityLevel} />
+      </group>
+      <group visible={sectionVisibility.finalRoute}>
+        <FinalRouteEnvironment
+          agendaEvents={agendaEvents}
+          audioStories={audioStories}
+          audioInteractionEnabled={audioInteractionEnabled}
+          featuredBooks={featuredBooks}
+          bookInteractionEnabled={bookInteractionEnabled}
+          libraryAudioStories={libraryAudioStories}
+          libraryBooks={libraryBooks}
+          onAgendaOpen={onAgendaOpen}
+          onAudioStorySelect={onAudioStorySelect}
+          onBookSelect={onBookSelect}
+          onLoopActivate={onLoopActivate}
+          onSocialOpen={onSocialOpen}
+          progress={progress}
+          qualityLevel={qualityLevel}
+          reducedMotionEnabled={reducedMotionEnabled}
+          socialInteractionEnabled={socialInteractionEnabled}
+        />
+      </group>
+      <group visible={sectionVisibility.signage}>
+        <CategorySignage
+          enabled={sectionVisibility.signage}
+          progress={progress}
+          qualityLevel={qualityLevel}
+          reducedMotionEnabled={reducedMotionEnabled}
+        />
+      </group>
+      <RouteLightRig
+        lightQuality={lightQuality}
+        qualityLevel={qualityLevel}
+        ready={entranceReady}
+        sectionVisibility={sectionVisibility}
+      />
+      <SceneWarmup
+        contentSettled={contentSettled}
+        onReady={onEntranceReady}
+      />
+    </Suspense>
   )
 }

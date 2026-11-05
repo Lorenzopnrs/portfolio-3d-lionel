@@ -6,6 +6,7 @@ import { loadPortfolioContent } from './sanityContent.js'
 
 export function usePortfolioContent() {
   const [content, setContent] = useState(localPortfolioContent)
+  const [settled, setSettled] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -17,6 +18,7 @@ export function usePortfolioContent() {
     }).then((nextContent) => {
       if (active) {
         setContent(nextContent)
+        setSettled(true)
       }
     })
 
@@ -25,5 +27,5 @@ export function usePortfolioContent() {
     }
   }, [])
 
-  return content
+  return { content, settled }
 }

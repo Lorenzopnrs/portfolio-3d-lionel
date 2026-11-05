@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 
 export function ExperienceLoader({ entranceReady }) {
-  const { active, errors, progress } = useProgress()
+  const { errors, progress } = useProgress()
   const [isMounted, setIsMounted] = useState(true)
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function ExperienceLoader({ entranceReady }) {
 
   const visibleProgress = entranceReady
     ? 100
-    : Math.max(6, Math.min(active ? progress : 12, 96))
+    : Math.max(6, Math.min(progress, 96))
 
   return (
     <section

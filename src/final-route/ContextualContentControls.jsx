@@ -1,19 +1,5 @@
 import { getContextualPanelId } from './interactionState'
 
-function SocialLinkControl({ socialLink }) {
-  return (
-    <a
-      href={socialLink.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${socialLink.label}, ouvrir le lien externe`}
-    >
-      <span>{socialLink.label}</span>
-      <small>{socialLink.description}</small>
-    </a>
-  )
-}
-
 function BookControls({ books, onBookSelect }) {
   if (books.length === 0) {
     return <p className="content-access-empty">Aucun livre publié.</p>
@@ -66,32 +52,10 @@ function AudioStoryControls({ audioStories, onAudioStorySelect }) {
   )
 }
 
-function SocialControls({ onSocialOpen, socialLinks }) {
-  return (
-    <>
-      <button
-        type="button"
-        className="content-primary-action"
-        data-social-trigger
-        onClick={(event) => onSocialOpen(event.currentTarget)}
-      >
-        Ouvrir les réseaux sociaux
-      </button>
-      <div className="content-access-actions">
-        {socialLinks.map((socialLink) => (
-          <SocialLinkControl
-            key={socialLink.id}
-            socialLink={socialLink}
-          />
-        ))}
-      </div>
-    </>
-  )
-}
-
 function ArchiveIndex({
   audioStories,
   books,
+  onAgendaOpen,
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
@@ -127,6 +91,17 @@ function ArchiveIndex({
             Ouvrir les réseaux sociaux
           </button>
         </section>
+        <section>
+          <h3>AGENDA</h3>
+          <button
+            type="button"
+            className="content-primary-action"
+            data-agenda-trigger
+            onClick={(event) => onAgendaOpen(event.currentTarget)}
+          >
+            Ouvrir l’agenda
+          </button>
+        </section>
       </div>
     </nav>
   )
@@ -138,11 +113,11 @@ export function ContextualContentControls({
   audioStories,
   books,
   interactionLocked,
+  onAgendaOpen,
   onAudioStorySelect,
   onBookSelect,
   onSocialOpen,
   socialContent,
-  socialLinks,
 }) {
   const panelId = getContextualPanelId(
     activeStopId,
@@ -155,6 +130,7 @@ export function ContextualContentControls({
       <ArchiveIndex
         audioStories={audioStories}
         books={books}
+        onAgendaOpen={onAgendaOpen}
         onAudioStorySelect={onAudioStorySelect}
         onBookSelect={onBookSelect}
         onSocialOpen={onSocialOpen}
@@ -165,7 +141,7 @@ export function ContextualContentControls({
   if (panelId === 'books') {
     return (
       <nav
-        className="content-access-panel"
+        className="content-access-panel content-access-panel-books"
         aria-labelledby="book-access-title"
       >
         <p className="content-access-kicker">Galerie de lecture</p>
@@ -199,11 +175,34 @@ export function ContextualContentControls({
       >
         <p className="content-access-kicker">Correspondances</p>
         <h2 id="social-access-title">{socialContent.title}</h2>
-        <p>{socialContent.summary}</p>
-        <SocialControls
-          onSocialOpen={onSocialOpen}
-          socialLinks={socialLinks}
-        />
+        <button
+          type="button"
+          className="content-primary-action"
+          data-social-trigger
+          onClick={(event) => onSocialOpen(event.currentTarget)}
+        >
+          Décrocher le téléphone
+        </button>
+      </nav>
+    )
+  }
+
+  if (panelId === 'agenda') {
+    return (
+      <nav
+        className="content-access-panel"
+        aria-labelledby="agenda-access-title"
+      >
+        <p className="content-access-kicker">Rencontres et événements</p>
+        <h2 id="agenda-access-title">AGENDA</h2>
+        <button
+          type="button"
+          className="content-primary-action"
+          data-agenda-trigger
+          onClick={(event) => onAgendaOpen(event.currentTarget)}
+        >
+          Ouvrir l’agenda
+        </button>
       </nav>
     )
   }
